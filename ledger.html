@@ -54,10 +54,6 @@
         <!-- Bills Table -->
         <div class="card section">
           <p class="section-title">Bills (Last 12 Months)</p>
-          <div id="billsLoading" class="loading-spinner hidden">
-            <div class="loading-spinner__ring"></div>
-            <span>Loading bills…</span>
-          </div>
           <div class="ledger-table-wrapper">
             <table class="ledger-table">
               <thead>
@@ -73,10 +69,6 @@
         <!-- Payments Table -->
         <div class="card section">
           <p class="section-title">Payments (Last 12 Months)</p>
-          <div id="paymentsLoading" class="loading-spinner hidden">
-            <div class="loading-spinner__ring"></div>
-            <span>Loading payments…</span>
-          </div>
           <div class="ledger-table-wrapper">
             <table class="ledger-table">
               <thead>
@@ -132,15 +124,13 @@
       const doSearch = async () => {
         const q = document.getElementById('searchInput').value.trim();
         if (!q) {
-          document.getElementById('searchError').textContent = 'Please enter a CIN No or Meter Serial Number.';
-          document.getElementById('searchError').classList.remove('hidden');
+          setSearchError('Please enter a CIN No or Meter Serial Number.');
           return;
         }
-        document.getElementById('searchError').classList.add('hidden');
+        clearSearchError();
         document.getElementById('loadingSpinner').classList.remove('hidden');
-
         try {
-          // Try by CIN
+          // Try direct by CIN
           const cDoc = await getDoc(doc(db, 'consumers', q));
           if (cDoc.exists()) {
             cinNo = q;
@@ -148,183 +138,298 @@
             await loadLedger(q);
             return;
           }
-          // Try by meter serial
-          const snap = await getDocs(query(collection(db, 'consumers'), where('meter_serial_no', '==', q), limit(1)));
+          // Try by meter serial (indexed)
+          const snap = await getDocs(query(
+            collection(db, 'consumers'),
+            where('meter_serial_no', '==', q),
+            limit(1)
+          ));
           if (!snap.empty) {
             cinNo = snap.docs[0].id;
             document.getElementById('searchSection').classList.add('hidden');
             await loadLedger(cinNo);
             return;
           }
-          document.getElementById('searchError').textContent = 'No consumer found.';
-          document.getElementById('searchError').classList.remove('hidden');
+          setSearchError('No consumer found with that CIN No or Meter Serial Number.');
         } catch (err) {
-          document.getElementById('searchError').textContent = 'Search failed. Please check your connection.';
-          document.getElementById('searchError').classList.remove('hidden');
+          console.error('Search error:', err);
+          setSearchError('Search failed. Please check your connection and try again.');
         } finally {
           document.getElementById('loadingSpinner').classList.add('hidden');
         }
       };
       document.getElementById('searchBtn').addEventListener('click', doSearch);
-      document.getElementById('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+      document.getElementById('searchInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') doSearch();
+      });
+    }
+
+    function setSearchError(msg) {
+      const el = document.getElementById('searchError');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+    function clearSearchError() {
+      document.getElementById('searchError').classList.add('hidden');
     }
 
     function formatTs(ts) {
       if (!ts) return '—';
       let d;
-      if (ts.toDate) d = ts.toDate();
+      if (ts && typeof ts.toDate === 'function') d = ts.toDate();
+      else if (ts && ts.seconds) d = new Date(ts.seconds * 1000);
       else d = new Date(ts);
+      if (isNaN(d)) return '—';
       return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
     }
 
     function formatCurrency(n) {
-      if (n == null) return '—';
+      if (n == null || isNaN(Number(n))) return '—';
       return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
     function statusBadgeClass(status) {
       const map = {
-        'Active':'status-badge--active','Inactive':'status-badge--inactive',
-        'Meter Faulty':'status-badge--meter-faulty','Disconnected':'status-badge--disconnected','Disputed':'status-badge--disputed'
+        'Active': 'status-badge--active',
+        'Inactive': 'status-badge--inactive',
+        'Meter Faulty': 'status-badge--meter-faulty',
+        'Disconnected': 'status-badge--disconnected',
+        'Disputed': 'status-badge--disputed'
       };
       return map[status] || 'status-badge--inactive';
     }
 
+    // Parse a DD-MM-YYYY string into a Date (returns null on failure)
+    function parseDDMMYYYY(s) {
+      if (!s || typeof s !== 'string') return null;
+      const parts = s.split('-');
+      if (parts.length !== 3) return null;
+      const [dd, mm, yyyy] = parts;
+      const d = new Date(`${yyyy}-${mm}-${dd}`);
+      return isNaN(d) ? null : d;
+    }
+
     async function loadLedger(cin) {
       try {
-        const twelveMonthsAgo = new Date();
-        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
-        const cutoffTs = Timestamp.fromDate(twelveMonthsAgo);
-
-        const [cDoc, readingsSnap, paymentsSnap, openCyclesSnap] = await Promise.all([
-          getDoc(doc(db, 'consumers', cin)),
-          getDocs(query(
-            collection(db, 'readings'),
-            where('cin_no', '==', cin),
-            where('submitted_at', '>=', cutoffTs),
-            orderBy('submitted_at', 'desc')
-          )),
-          getDocs(query(
-            collection(db, 'payments'),
-            where('cin_no', '==', cin),
-            where('payment_date', '>=', formatDateForQuery(twelveMonthsAgo)),
-            orderBy('payment_date', 'desc')
-          )),
-          getDocs(query(
-            collection(db, 'billing_cycles'),
-            where('status', '==', 'open')
-          ))
-        ]);
-
+        // Step 1: load consumer (required — fail fast if missing)
+        const cDoc = await getDoc(doc(db, 'consumers', cin));
         if (!cDoc.exists()) {
           showError('Consumer not found.');
           return;
         }
-
         const consumer = { cin_no: cDoc.id, ...cDoc.data() };
-        const readings = readingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        const payments = paymentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        const openCycles = openCyclesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-        // Render consumer info
-        const rows = [
-          ['CIN No.', consumer.cin_no],
-          ['Name', consumer.name],
-          ['Zone', consumer.zone],
-          ['Category', consumer.category],
-          ['Meter Size', consumer.meter_size],
-          ['Meter Serial', consumer.meter_serial_no],
-          ['Contact', consumer.contact_number || '—'],
-          ['APL/BPL', consumer.apl_bpl || '—'],
-          ['Status', `<span class="status-badge ${statusBadgeClass(consumer.consumer_status)}">${consumer.consumer_status || '—'}</span>`],
-          ['Address', [consumer.address_area_location, consumer.address_landmark, consumer.address_pin_code].filter(Boolean).join(', ') || '—'],
-        ];
-        document.getElementById('consumerInfo').innerHTML = rows.map(([l,v]) =>
-          `<div class="info-panel__row"><span class="info-panel__label">${l}</span><span class="info-panel__value">${v||'—'}</span></div>`
-        ).join('');
-
-        // Balances
-        document.getElementById('balanceInfo').innerHTML = `
-          <div class="info-panel__row">
-            <span class="info-panel__label">Outstanding Balance</span>
-            <span class="info-panel__value text-danger fw-bold">${formatCurrency(consumer.outstanding_balance || 0)}</span>
-          </div>
-          <div class="info-panel__row">
-            <span class="info-panel__label">Credit Balance</span>
-            <span class="info-panel__value text-success fw-bold">${formatCurrency(consumer.credit_balance || 0)}</span>
-          </div>`;
-
-        // Current cycle status
-        let cycleStatusText = 'No active billing cycle for this zone';
-        const consumerZone = consumer.zone;
-        const relevantCycle = openCycles.find(c => c.zones && c.zones.includes(consumerZone));
-        if (relevantCycle) {
-          const cycleReading = readings.find(r => r.cycle_id === relevantCycle.id);
-          if (cycleReading) {
-            if (cycleReading.status === 'finalized') cycleStatusText = 'Current Cycle: ✅ Reading submitted';
-            else if (cycleReading.status === 'skipped') cycleStatusText = `Current Cycle: ⚠ Cannot Read (${cycleReading.cannot_read_reason || 'reason not recorded'})`;
-            else cycleStatusText = 'Current Cycle: Pending';
-          } else {
-            cycleStatusText = 'Current Cycle: Pending (reading not yet submitted)';
-          }
-        }
-        document.getElementById('cycleStatus').innerHTML = `
-          <div class="info-panel__row">
-            <span class="info-panel__label">Cycle Status</span>
-            <span class="info-panel__value">${cycleStatusText}</span>
-          </div>`;
-
-        // Bills table
-        const billsBody = document.getElementById('billsBody');
-        if (readings.length === 0) {
-          billsBody.innerHTML = '<tr><td colspan="4" class="text-muted text-center">No readings in the last 12 months.</td></tr>';
-        } else {
-          billsBody.innerHTML = readings.map(r => {
-            const bill = r.full_bill_breakdown;
-            const total = bill ? bill.total_amount : null;
-            const consumption = r.consumption != null ? `${Number(r.consumption).toFixed(2)} KL` : '—';
-            const date = r.reading_date || formatTs(r.submitted_at);
-            let statusText = '—';
-            if (r.status === 'skipped') statusText = 'Cannot Read';
-            else if (total != null) {
-              const paid = payments.some(p => p.cycle_id === r.cycle_id);
-              statusText = paid ? 'Paid' : 'Unpaid';
-            }
-            return `<tr>
-              <td>${date}</td>
-              <td>${consumption}</td>
-              <td class="right">${total != null ? formatCurrency(total) : '—'}</td>
-              <td>${statusText}</td>
-            </tr>`;
-          }).join('');
-        }
-
-        // Payments table
-        const paymentsBody = document.getElementById('paymentsBody');
-        if (payments.length === 0) {
-          paymentsBody.innerHTML = '<tr><td colspan="3" class="text-muted text-center">No payments in the last 12 months.</td></tr>';
-        } else {
-          paymentsBody.innerHTML = payments.map(p => `
-            <tr>
-              <td>${p.payment_date || '—'}</td>
-              <td>${p.payment_mode || '—'}</td>
-              <td class="right amount-credit">${formatCurrency(p.amount)}</td>
-            </tr>`
-          ).join('');
-        }
-
+        renderConsumerInfo(consumer);
+        renderBalances(consumer);
         document.getElementById('pageContent').classList.remove('hidden');
+
+        // Step 2: load readings and payments independently so one failure doesn't block the other
+        const twelveMonthsAgo = new Date();
+        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+        const cutoffTs = Timestamp.fromDate(twelveMonthsAgo);
+
+        // Readings — query only by cin_no + submitted_at (requires index: cin_no ASC, submitted_at DESC)
+        // Fall back to unordered if the composite index doesn't exist yet
+        const readingsPromise = (async () => {
+          try {
+            const snap = await getDocs(query(
+              collection(db, 'readings'),
+              where('cin_no', '==', cin),
+              where('submitted_at', '>=', cutoffTs),
+              orderBy('submitted_at', 'desc')
+            ));
+            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          } catch (e1) {
+            // Composite index missing — fall back: fetch all readings for this consumer, filter client-side
+            console.warn('Readings ordered query failed, falling back:', e1.message);
+            try {
+              const snap2 = await getDocs(query(
+                collection(db, 'readings'),
+                where('cin_no', '==', cin)
+              ));
+              const cutoffMs = twelveMonthsAgo.getTime();
+              return snap2.docs
+                .map(d => ({ id: d.id, ...d.data() }))
+                .filter(r => {
+                  if (!r.submitted_at) return false;
+                  const ms = r.submitted_at.seconds ? r.submitted_at.seconds * 1000
+                           : (r.submitted_at.toDate ? r.submitted_at.toDate().getTime() : 0);
+                  return ms >= cutoffMs;
+                })
+                .sort((a, b) => {
+                  const msA = a.submitted_at.seconds ? a.submitted_at.seconds * 1000 : 0;
+                  const msB = b.submitted_at.seconds ? b.submitted_at.seconds * 1000 : 0;
+                  return msB - msA;
+                });
+            } catch (e2) {
+              console.error('Readings fallback also failed:', e2.message);
+              return [];
+            }
+          }
+        })();
+
+        // Payments — payment_date is stored as DD-MM-YYYY string, so we cannot use Firestore range filter.
+        // Fetch all payments for this consumer and filter client-side by parsing the date string.
+        const paymentsPromise = (async () => {
+          try {
+            const snap = await getDocs(query(
+              collection(db, 'payments'),
+              where('cin_no', '==', cin)
+            ));
+            const cutoffMs = twelveMonthsAgo.getTime();
+            return snap.docs
+              .map(d => ({ id: d.id, ...d.data() }))
+              .filter(p => {
+                // Try payment_date (DD-MM-YYYY string) first, then entry_date Timestamp
+                const pd = parseDDMMYYYY(p.payment_date);
+                if (pd) return pd.getTime() >= cutoffMs;
+                if (p.entry_date) {
+                  const ms = p.entry_date.seconds ? p.entry_date.seconds * 1000
+                           : (p.entry_date.toDate ? p.entry_date.toDate().getTime() : 0);
+                  return ms >= cutoffMs;
+                }
+                return false;
+              })
+              .sort((a, b) => {
+                const pa = parseDDMMYYYY(a.payment_date) || new Date(0);
+                const pb = parseDDMMYYYY(b.payment_date) || new Date(0);
+                return pb - pa;
+              });
+          } catch (err) {
+            console.error('Payments query failed:', err.message);
+            return [];
+          }
+        })();
+
+        // Open cycles — needed for cycle status display
+        const openCyclesPromise = (async () => {
+          try {
+            const snap = await getDocs(query(
+              collection(db, 'billing_cycles'),
+              where('status', '==', 'open')
+            ));
+            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          } catch (err) {
+            console.warn('Open cycles query failed:', err.message);
+            return [];
+          }
+        })();
+
+        // Wait for all three in parallel
+        const [readings, payments, openCycles] = await Promise.all([
+          readingsPromise,
+          paymentsPromise,
+          openCyclesPromise
+        ]);
+
+        renderCycleStatus(consumer, openCycles, readings);
+        renderBillsTable(readings, payments);
+        renderPaymentsTable(payments);
+
       } catch (err) {
-        showError('Failed to load ledger. Please check your connection and try again.');
+        console.error('loadLedger error:', err);
+        showError('Failed to load ledger: ' + (err.message || 'Unknown error. Please check your connection and try again.'));
       } finally {
         document.getElementById('loadingSpinner').classList.add('hidden');
       }
     }
 
-    function formatDateForQuery(date) {
-      const dd = String(date.getDate()).padStart(2,'0');
-      const mm = String(date.getMonth()+1).padStart(2,'0');
-      return `${dd}-${mm}-${date.getFullYear()}`;
+    function renderConsumerInfo(consumer) {
+      const rows = [
+        ['CIN No.', consumer.cin_no],
+        ['Name', consumer.name],
+        ['Zone', consumer.zone],
+        ['Category', consumer.category],
+        ['Meter Size', consumer.meter_size],
+        ['Meter Serial', consumer.meter_serial_no],
+        ['Contact', consumer.contact_number || '—'],
+        ['APL/BPL', consumer.apl_bpl || '—'],
+        ['Status', `<span class="status-badge ${statusBadgeClass(consumer.consumer_status)}">${consumer.consumer_status || '—'}</span>`],
+        ['Address', [consumer.address_area_location, consumer.address_landmark, consumer.address_pin_code].filter(Boolean).join(', ') || '—'],
+      ];
+      document.getElementById('consumerInfo').innerHTML = rows.map(([l, v]) =>
+        `<div class="info-panel__row">
+          <span class="info-panel__label">${l}</span>
+          <span class="info-panel__value">${v || '—'}</span>
+        </div>`
+      ).join('');
+    }
+
+    function renderBalances(consumer) {
+      document.getElementById('balanceInfo').innerHTML = `
+        <div class="info-panel__row">
+          <span class="info-panel__label">Outstanding Balance</span>
+          <span class="info-panel__value text-danger fw-bold">${formatCurrency(consumer.outstanding_balance || 0)}</span>
+        </div>
+        <div class="info-panel__row">
+          <span class="info-panel__label">Credit Balance</span>
+          <span class="info-panel__value text-success fw-bold">${formatCurrency(consumer.credit_balance || 0)}</span>
+        </div>`;
+    }
+
+    function renderCycleStatus(consumer, openCycles, readings) {
+      let cycleStatusText = 'No active billing cycle for this zone.';
+      const relevantCycle = openCycles.find(c => Array.isArray(c.zones) && c.zones.includes(consumer.zone));
+      if (relevantCycle) {
+        const cycleReading = readings.find(r => r.cycle_id === relevantCycle.id);
+        if (cycleReading) {
+          if (cycleReading.status === 'finalized') {
+            cycleStatusText = '✅ Reading submitted for current cycle.';
+          } else if (cycleReading.status === 'skipped') {
+            cycleStatusText = `⚠ Cannot Read recorded (${cycleReading.cannot_read_reason || 'reason not recorded'}).`;
+          } else {
+            cycleStatusText = 'Reading pending for current cycle.';
+          }
+        } else {
+          cycleStatusText = '⏳ Reading not yet submitted for current cycle.';
+        }
+      }
+      document.getElementById('cycleStatus').innerHTML = `
+        <div class="info-panel__row">
+          <span class="info-panel__label">Current Cycle</span>
+          <span class="info-panel__value">${cycleStatusText}</span>
+        </div>`;
+    }
+
+    function renderBillsTable(readings, payments) {
+      const tbody = document.getElementById('billsBody');
+      if (readings.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center">No readings found in the last 12 months.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = readings.map(r => {
+        const bill = r.full_bill_breakdown;
+        const total = bill ? bill.total_amount : null;
+        const consumption = r.consumption != null ? `${Number(r.consumption).toFixed(2)} KL` : '—';
+        const date = r.reading_date || formatTs(r.submitted_at);
+        let statusText = '—';
+        if (r.status === 'skipped') {
+          statusText = 'Cannot Read';
+        } else if (total != null) {
+          const paid = payments.some(p => p.cycle_id === r.cycle_id && p.cycle_id);
+          statusText = paid ? '<span class="text-success">Paid</span>' : '<span class="text-danger">Unpaid</span>';
+        }
+        return `<tr>
+          <td>${date}</td>
+          <td>${consumption}</td>
+          <td class="right">${total != null ? formatCurrency(total) : '—'}</td>
+          <td>${statusText}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function renderPaymentsTable(payments) {
+      const tbody = document.getElementById('paymentsBody');
+      if (payments.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-muted text-center">No payments found in the last 12 months.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = payments.map(p => `
+        <tr>
+          <td>${p.payment_date || formatTs(p.entry_date) || '—'}</td>
+          <td>${p.payment_mode || '—'}</td>
+          <td class="right amount-credit">${formatCurrency(p.amount)}</td>
+        </tr>`
+      ).join('');
     }
 
     function showError(msg) {
