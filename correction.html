@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Correction Query — RJB</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header__brand">
+      <img class="header__logo" src="rjb-logo.png" alt="RJB Logo" onerror="this.style.display='none'">
+      <span class="header__title">Rajasthan Jal Board</span>
+    </div>
+    <div class="header__right">
+      <span class="header__user" id="headerUser"></span>
+      <button class="header__logout" id="logoutBtn">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <div id="loadingSpinner" class="loading-spinner">
+        <div class="loading-spinner__ring"></div>
+        <span>Loading reading…</span>
+      </div>
+
+      <div id="pageContent" class="hidden">
+        <div id="errorMsg" class="alert alert-danger hidden"></div>
+        <div id="successMsg" class="alert alert-success hidden"></div>
+
+        <!-- Existing Query Status -->
+        <div id="existingQuerySection" class="hidden">
+          <div class="card section">
+            <p class="section-title">Existing Correction Query</p>
+            <div class="info-panel" id="existingQueryInfo"></div>
+            <div id="rejectionNote" class="alert alert-danger hidden mt-1"></div>
+          </div>
+        </div>
+
+        <!-- Correction Form -->
+        <div id="formSection">
+          <div class="card section">
+            <p class="section-title">Raise Correction Query</p>
+            <p class="text-muted mb-1" style="font-size:0.9rem;">Submit a request to correct the reading below. The admin will review and approve or reject it.</p>
+            <div class="info-panel" id="readingInfo"></div>
+          </div>
+
+          <div class="card section">
+            <p class="section-title">Correction Details</p>
+            <div class="form-group">
+              <label for="correctedReading">Requested Corrected Reading (KL)</label>
+              <input type="number" id="correctedReading" inputmode="decimal" min="0" step="0.01" placeholder="Enter corrected reading in KL">
+            </div>
+            <div class="form-group">
+              <label for="reasonNote">Reason for Correction</label>
+              <textarea id="reasonNote" rows="3" placeholder="Explain why the reading needs to be corrected…"></textarea>
+            </div>
+            <button class="btn btn-primary btn-full" id="submitCorrectionBtn">Submit Correction Query</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import {
+      getFirestore, doc, getDoc, collection, query, where, getDocs,
+      addDoc, serverTimestamp, limit
+    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { firebaseConfig } from './firebase_config.js';
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const params = new URLSearchParams(window.location.search);
+    const readingId = params.get('reading_id');
+
+    let reading = null;
+    let consumer = null;
+    let readerProfile = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) { window.location.href = 'index.html'; return; }
+      readerProfile = JSON.parse(sessionStorage.getItem('meter_reader_profile') || '{}');
+      document.getElementById('headerUser').textContent = readerProfile.name || user.email;
+
+      if (!readingId) {
+        showError('No reading ID specified.');
+        document.getElementById('loadingSpinner').classList.add('hidden');
+        document.getElementById('pageContent').classList.remove('hidden');
+        return;
+      }
+      await loadPage();
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await signOut(auth);
+      sessionStorage.clear();
+      window.location.href = 'index.html';
+    });
+
+    async function loadPage() {
+      try {
+        const rDoc = await getDoc(doc(db, 'readings', readingId));
+        if (!rDoc.exists()) {
+          showError('Reading not found.');
+          return;
+        }
+        reading = { id: rDoc.id, ...rDoc.data() };
+
+        // Load consumer info
+        const cDoc = await getDoc(doc(db, 'consumers', reading.cin_no));
+        consumer = cDoc.exists() ? { cin_no: cDoc.id, ...cDoc.data() } : null;
+
+        // Check for existing correction query
+        const existingQuery = query(
+          collection(db, 'correction_queries'),
+          where('reading_id', '==', readingId),
+          limit(1)
+        );
+        const existingSnap = await getDocs(existingQuery);
+        if (!existingSnap.empty) {
+          const existingData = existingSnap.docs[0].data();
+          renderExistingQuery(existingData);
+        }
+
+        renderForm();
+      } catch (err) {
+        showError('Failed to load page. Please check your connection and try again.');
+      } finally {
+        document.getElementById('loadingSpinner').classList.add('hidden');
+        document.getElementById('pageContent').classList.remove('hidden');
+      }
+    }
+
+    function renderExistingQuery(q) {
+      document.getElementById('existingQuerySection').classList.remove('hidden');
+
+      const statusMap = { pending: 'Pending Review', approved: 'Approved', rejected: 'Rejected' };
+      const rows = [
+        ['Status', statusMap[q.status] || q.status],
+        ['Requested Correction', q.requested_corrected_reading != null ? `${Number(q.requested_corrected_reading).toFixed(2)} KL` : '—'],
+        ['Reason', q.reason || '—'],
+        ['Submitted', q.created_at ? formatFirestoreDate(q.created_at) : '—'],
+      ];
+      if (q.resolved_at) rows.push(['Resolved', formatFirestoreDate(q.resolved_at)]);
+
+      document.getElementById('existingQueryInfo').innerHTML = rows.map(([l,v]) =>
+        `<div class="info-panel__row"><span class="info-panel__label">${l}</span><span class="info-panel__value">${v}</span></div>`
+      ).join('');
+
+      if (q.status === 'rejected' && q.rejection_note) {
+        const el = document.getElementById('rejectionNote');
+        el.textContent = `Rejection reason: ${q.rejection_note}`;
+        el.classList.remove('hidden');
+      }
+
+      // Hide form if already submitted
+      if (q.status === 'pending') {
+        document.getElementById('formSection').classList.add('hidden');
+        const notice = document.createElement('div');
+        notice.className = 'alert alert-info mt-1';
+        notice.textContent = 'A correction query has already been submitted and is pending review.';
+        document.getElementById('existingQuerySection').appendChild(notice);
+      }
+    }
+
+    function renderForm() {
+      const rows = [
+        ['Meter Reader', readerProfile.name || '—'],
+        ['Employee ID', readerProfile.employee_id || '—'],
+        ['Consumer CIN', reading.cin_no],
+        ['Consumer Name', consumer ? consumer.name : '—'],
+        ['Previous Reading', `${Number(reading.previous_reading).toFixed(2)} KL`],
+        ['Submitted Reading', `${Number(reading.current_reading).toFixed(2)} KL`],
+        ['Reading Date', reading.reading_date || '—'],
+      ];
+      document.getElementById('readingInfo').innerHTML = rows.map(([l,v]) =>
+        `<div class="info-panel__row"><span class="info-panel__label">${l}</span><span class="info-panel__value">${v}</span></div>`
+      ).join('');
+
+      document.getElementById('submitCorrectionBtn').addEventListener('click', submitCorrection);
+    }
+
+    async function submitCorrection() {
+      const correctedVal = document.getElementById('correctedReading').value.trim();
+      const reason = document.getElementById('reasonNote').value.trim();
+
+      if (!correctedVal) {
+        showError('Please enter the corrected reading.');
+        return;
+      }
+      if (!reason) {
+        showError('Please provide a reason for the correction.');
+        return;
+      }
+
+      const btn = document.getElementById('submitCorrectionBtn');
+      btn.disabled = true;
+      btn.textContent = 'Submitting…';
+      hideError();
+
+      try {
+        const consumerSnapshot = consumer ? {
+          cin_no: consumer.cin_no,
+          name: consumer.name,
+          zone: consumer.zone,
+          category: consumer.category,
+          meter_size: consumer.meter_size,
+          meter_serial_no: consumer.meter_serial_no
+        } : {};
+
+        await addDoc(collection(db, 'correction_queries'), {
+          reading_id: readingId,
+          cin_no: reading.cin_no,
+          cycle_id: reading.cycle_id || null,
+          reader_uid: readerProfile.uid,
+          reader_name: readerProfile.name,
+          reader_employee_id: readerProfile.employee_id,
+          consumer_info_snapshot: consumerSnapshot,
+          previous_reading: reading.previous_reading,
+          submitted_reading: reading.current_reading,
+          requested_corrected_reading: Number(correctedVal),
+          reason: reason,
+          status: 'pending',
+          rejection_note: null,
+          created_at: serverTimestamp(),
+          resolved_at: null
+        });
+
+        document.getElementById('formSection').classList.add('hidden');
+        const msg = document.getElementById('successMsg');
+        msg.textContent = 'Correction query submitted. The admin will review it and you will be notified of the outcome.';
+        msg.classList.remove('hidden');
+      } catch (err) {
+        showError('Submission failed. Please check your connection and try again.');
+        btn.disabled = false;
+        btn.textContent = 'Submit Correction Query';
+      }
+    }
+
+    function formatFirestoreDate(ts) {
+      if (!ts) return '—';
+      let d;
+      if (ts.toDate) d = ts.toDate();
+      else d = new Date(ts);
+      const dd = String(d.getDate()).padStart(2,'0');
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      return `${dd}-${mm}-${d.getFullYear()}`;
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorMsg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+    function hideError() {
+      document.getElementById('errorMsg').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reading Submitted — RJB</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header__brand">
+      <img class="header__logo" src="rjb-logo.png" alt="RJB Logo" onerror="this.style.display='none'">
+      <span class="header__title">Rajasthan Jal Board</span>
+    </div>
+    <div class="header__right">
+      <span class="header__user" id="headerUser"></span>
+      <button class="header__logout" id="logoutBtn">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <div id="loadingSpinner" class="loading-spinner">
+        <div class="loading-spinner__ring"></div>
+        <span>Loading confirmation…</span>
+      </div>
+
+      <div id="pageContent" class="hidden">
+        <div id="errorMsg" class="alert alert-danger hidden"></div>
+
+        <!-- Confirmation Box -->
+        <div class="confirmation-box" id="confirmBox">
+          <div class="confirmation-box__icon">✅</div>
+          <div class="confirmation-box__name" id="confName"></div>
+          <div class="confirmation-box__amount" id="confAmount"></div>
+          <div class="confirmation-box__detail" id="confDetail"></div>
+        </div>
+
+        <!-- Summary Card -->
+        <div class="card section">
+          <p class="section-title">Reading Summary</p>
+          <div class="info-panel" id="readingSummary"></div>
+
+          <!-- Bill Breakdown (collapsible) -->
+          <details class="mt-1">
+            <summary style="cursor:pointer;color:var(--primary);font-weight:600;padding:0.5rem 0;">View Bill Breakdown</summary>
+            <div class="bill-preview mt-1" id="billBreakdown">
+              <div class="bill-preview__header">Bill Breakdown</div>
+              <table>
+                <tbody id="billBreakdownBody"></tbody>
+                <tfoot>
+                  <tr class="bill-preview__total">
+                    <td>TOTAL</td>
+                    <td id="billBreakdownTotal"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </details>
+        </div>
+
+        <!-- Timer Bar (5 min edit window) -->
+        <div id="timerSection" class="card section">
+          <div class="timer-bar" id="timerBar">
+            <div class="timer-bar__label">
+              <span>Edit window closes in</span>
+              <span class="timer-bar__countdown" id="timerDisplay">5:00</span>
+            </div>
+            <div class="timer-bar__track">
+              <div class="timer-bar__fill" id="timerFill" style="width:100%"></div>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-full mt-1" id="editBtn">Edit Reading</button>
+        </div>
+
+        <!-- After timer expires: Correction Query button -->
+        <div id="correctionSection" class="card section hidden">
+          <p class="text-muted" style="font-size:0.9rem;">The 5-minute edit window has closed.</p>
+          <button class="btn btn-secondary btn-full mt-1" id="correctionBtn">Raise Correction Query</button>
+        </div>
+
+        <!-- Navigation -->
+        <div class="btn-group section">
+          <button class="btn btn-primary flex-1" id="searchAnotherBtn">Search Another Consumer</button>
+          <button class="btn btn-secondary flex-1" id="myReadingsBtn">My Readings</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { firebaseConfig } from './firebase_config.js';
+    import { formatCurrency, formatKL } from './billing-engine.js';
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const params = new URLSearchParams(window.location.search);
+    const readingId = params.get('reading_id');
+
+    let timerInterval = null;
+    let editWindowExpiry = null;
+    const TOTAL_WINDOW_MS = 5 * 60 * 1000;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) { window.location.href = 'index.html'; return; }
+      const profile = JSON.parse(sessionStorage.getItem('meter_reader_profile') || '{}');
+      document.getElementById('headerUser').textContent = profile.name || user.email;
+
+      if (!readingId) {
+        showError('No reading ID specified.');
+        document.getElementById('loadingSpinner').classList.add('hidden');
+        document.getElementById('pageContent').classList.remove('hidden');
+        return;
+      }
+      await loadPage();
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await signOut(auth);
+      sessionStorage.clear();
+      window.location.href = 'index.html';
+    });
+
+    document.getElementById('searchAnotherBtn').addEventListener('click', () => { window.location.href = 'search.html'; });
+    document.getElementById('myReadingsBtn').addEventListener('click', () => { window.location.href = 'my-readings.html'; });
+
+    async function loadPage() {
+      try {
+        const rDoc = await getDoc(doc(db, 'readings', readingId));
+        if (!rDoc.exists()) {
+          showError('Reading record not found.');
+          return;
+        }
+        const reading = { id: rDoc.id, ...rDoc.data() };
+        renderPage(reading);
+      } catch (err) {
+        showError('Failed to load confirmation. Please check your connection.');
+      } finally {
+        document.getElementById('loadingSpinner').classList.add('hidden');
+        document.getElementById('pageContent').classList.remove('hidden');
+      }
+    }
+
+    function renderPage(reading) {
+      const bill = reading.full_bill_breakdown || {};
+      const total = bill.total_amount != null ? bill.total_amount : 0;
+      const consumption = reading.consumption != null ? reading.consumption : 0;
+
+      document.getElementById('confName').textContent = reading.reader_name || '—';
+      document.getElementById('confAmount').textContent = formatCurrency(total);
+      document.getElementById('confDetail').textContent =
+        `CIN: ${reading.cin_no}  •  Reading: ${Number(reading.current_reading).toFixed(2)} KL  •  Cycle: ${reading.cycle_id || 'N/A'}`;
+
+      // Summary rows
+      const summaryRows = [
+        ['Consumer CIN', reading.cin_no],
+        ['Reading Date', reading.reading_date || '—'],
+        ['Previous Reading', `${Number(reading.previous_reading).toFixed(2)} KL`],
+        ['Current Reading', `${Number(reading.current_reading).toFixed(2)} KL`],
+        ['Consumption', `${Number(consumption).toFixed(2)} KL`],
+        ['Total Bill', formatCurrency(total)],
+      ];
+      document.getElementById('readingSummary').innerHTML = summaryRows.map(([l,v]) =>
+        `<div class="info-panel__row"><span class="info-panel__label">${l}</span><span class="info-panel__value">${v}</span></div>`
+      ).join('');
+
+      // Bill breakdown
+      renderBillBreakdown(bill);
+
+      // Edit window timer
+      let expiryMs = null;
+      if (reading.edit_window_expiry) {
+        if (reading.edit_window_expiry.toDate) {
+          expiryMs = reading.edit_window_expiry.toDate().getTime();
+        } else {
+          expiryMs = new Date(reading.edit_window_expiry).getTime();
+        }
+      }
+
+      editWindowExpiry = expiryMs;
+      const remaining = expiryMs ? expiryMs - Date.now() : 0;
+
+      if (remaining > 0) {
+        startTimer(remaining, expiryMs);
+        document.getElementById('editBtn').addEventListener('click', () => {
+          window.location.href = `reading.html?cin=${encodeURIComponent(reading.cin_no)}&edit=${encodeURIComponent(readingId)}`;
+        });
+      } else {
+        // Window expired
+        document.getElementById('timerSection').classList.add('hidden');
+        document.getElementById('correctionSection').classList.remove('hidden');
+      }
+
+      document.getElementById('correctionBtn').addEventListener('click', () => {
+        window.location.href = `correction.html?reading_id=${encodeURIComponent(readingId)}`;
+      });
+    }
+
+    function renderBillBreakdown(bill) {
+      const tbody = document.getElementById('billBreakdownBody');
+      const rows = [];
+
+      if (bill.slab_details && bill.slab_details.length > 0) {
+        bill.slab_details.forEach(s => {
+          rows.push(`<tr><td>Water (${s.slab}): ${formatKL(s.kl)} × ₹${s.rate}</td><td>${formatCurrency(s.amount)}</td></tr>`);
+        });
+      } else if (bill.water_charge != null) {
+        rows.push(`<tr><td>Water Charge</td><td>${formatCurrency(bill.water_charge)}</td></tr>`);
+      }
+      if (bill.minimum_charge_applied) rows.push(`<tr><td>Minimum Charge Applied</td><td>${formatCurrency(bill.minimum_charge_applied)}</td></tr>`);
+      if (bill.fixed_charge) rows.push(`<tr><td>Fixed Charge</td><td>${formatCurrency(bill.fixed_charge)}</td></tr>`);
+      if (bill.meter_service_charge) rows.push(`<tr><td>Meter Service Charge</td><td>${formatCurrency(bill.meter_service_charge)}</td></tr>`);
+      if (bill.sewerage_charge) rows.push(`<tr><td>Sewerage Charge</td><td>${formatCurrency(bill.sewerage_charge)}</td></tr>`);
+      if (bill.ids_charge) rows.push(`<tr><td>IDS Surcharge</td><td>${formatCurrency(bill.ids_charge)}</td></tr>`);
+      if (bill.previous_outstanding) rows.push(`<tr><td>Previous Outstanding</td><td>${formatCurrency(bill.previous_outstanding)}</td></tr>`);
+      if (bill.credit_applied) rows.push(`<tr><td>Credit Applied</td><td>−${formatCurrency(bill.credit_applied)}</td></tr>`);
+      if (bill.lps_amount && bill.lps_amount > 0) rows.push(`<tr class="bill-preview__lps"><td>LPS (${bill.lps_type})</td><td>${formatCurrency(bill.lps_amount)}</td></tr>`);
+
+      tbody.innerHTML = rows.join('');
+      document.getElementById('billBreakdownTotal').textContent = formatCurrency(bill.total_amount || 0);
+    }
+
+    function startTimer(remainingMs, expiryMs) {
+      const fill = document.getElementById('timerFill');
+
+      function update() {
+        const now = Date.now();
+        const rem = expiryMs - now;
+        if (rem <= 0) {
+          clearInterval(timerInterval);
+          fill.style.width = '0%';
+          fill.classList.add('timer-bar__fill--expired');
+          document.getElementById('timerDisplay').textContent = '0:00';
+          document.getElementById('timerSection').classList.add('hidden');
+          document.getElementById('correctionSection').classList.remove('hidden');
+          return;
+        }
+        const m = Math.floor(rem / 60000);
+        const s = Math.floor((rem % 60000) / 1000);
+        document.getElementById('timerDisplay').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+        const pct = Math.max(0, Math.min(100, (rem / TOTAL_WINDOW_MS) * 100));
+        fill.style.width = `${pct}%`;
+        if (rem < 2 * 60 * 1000) {
+          fill.classList.add('timer-bar__fill--warning');
+        }
+      }
+      update();
+      timerInterval = setInterval(update, 1000);
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorMsg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consumer Ledger — RJB</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header__brand">
+      <img class="header__logo" src="rjb-logo.png" alt="RJB Logo" onerror="this.style.display='none'">
+      <span class="header__title">Rajasthan Jal Board</span>
+    </div>
+    <div class="header__right">
+      <span class="header__user" id="headerUser"></span>
+      <button class="header__logout" id="logoutBtn">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <!-- Search if no cin param -->
+      <div id="searchSection" class="card section hidden">
+        <h2 style="font-size:1.2rem;color:var(--primary);margin-bottom:1rem;">Consumer Ledger</h2>
+        <div class="search-bar">
+          <input type="text" id="searchInput" placeholder="Enter CIN No or Meter Serial Number" inputmode="text" autocomplete="off">
+          <button class="btn btn-primary" id="searchBtn">Search</button>
+        </div>
+        <div id="searchError" class="alert alert-danger hidden mt-1"></div>
+      </div>
+
+      <div id="loadingSpinner" class="loading-spinner hidden">
+        <div class="loading-spinner__ring"></div>
+        <span>Loading ledger…</span>
+      </div>
+
+      <div id="pageContent" class="hidden">
+        <div id="errorMsg" class="alert alert-danger hidden"></div>
+
+        <!-- Consumer Info Card -->
+        <div class="card section">
+          <p class="section-title">Consumer Information</p>
+          <div class="info-panel" id="consumerInfo"></div>
+        </div>
+
+        <!-- Balances -->
+        <div class="card section">
+          <p class="section-title">Account Balance</p>
+          <div class="info-panel" id="balanceInfo"></div>
+          <div class="info-panel mt-1" id="cycleStatus"></div>
+        </div>
+
+        <!-- Bills Table -->
+        <div class="card section">
+          <p class="section-title">Bills (Last 12 Months)</p>
+          <div id="billsLoading" class="loading-spinner hidden">
+            <div class="loading-spinner__ring"></div>
+            <span>Loading bills…</span>
+          </div>
+          <div class="ledger-table-wrapper">
+            <table class="ledger-table">
+              <thead>
+                <tr><th>Date</th><th>Consumption</th><th class="right">Amount</th><th>Status</th></tr>
+              </thead>
+              <tbody id="billsBody">
+                <tr><td colspan="4" class="text-muted text-center">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Payments Table -->
+        <div class="card section">
+          <p class="section-title">Payments (Last 12 Months)</p>
+          <div id="paymentsLoading" class="loading-spinner hidden">
+            <div class="loading-spinner__ring"></div>
+            <span>Loading payments…</span>
+          </div>
+          <div class="ledger-table-wrapper">
+            <table class="ledger-table">
+              <thead>
+                <tr><th>Date</th><th>Mode</th><th class="right">Amount</th></tr>
+              </thead>
+              <tbody id="paymentsBody">
+                <tr><td colspan="3" class="text-muted text-center">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import {
+      getFirestore, doc, getDoc, collection, query, where, getDocs,
+      orderBy, Timestamp, limit
+    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { firebaseConfig } from './firebase_config.js';
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const params = new URLSearchParams(window.location.search);
+    let cinNo = params.get('cin');
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) { window.location.href = 'index.html'; return; }
+      const profile = JSON.parse(sessionStorage.getItem('meter_reader_profile') || '{}');
+      document.getElementById('headerUser').textContent = profile.name || user.email;
+
+      if (!cinNo) {
+        document.getElementById('searchSection').classList.remove('hidden');
+        setupSearch();
+      } else {
+        document.getElementById('loadingSpinner').classList.remove('hidden');
+        await loadLedger(cinNo);
+      }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await signOut(auth);
+      sessionStorage.clear();
+      window.location.href = 'index.html';
+    });
+
+    function setupSearch() {
+      const doSearch = async () => {
+        const q = document.getElementById('searchInput').value.trim();
+        if (!q) {
+          document.getElementById('searchError').textContent = 'Please enter a CIN No or Meter Serial Number.';
+          document.getElementById('searchError').classList.remove('hidden');
+          return;
+        }
+        document.getElementById('searchError').classList.add('hidden');
+        document.getElementById('loadingSpinner').classList.remove('hidden');
+
+        try {
+          // Try by CIN
+          const cDoc = await getDoc(doc(db, 'consumers', q));
+          if (cDoc.exists()) {
+            cinNo = q;
+            document.getElementById('searchSection').classList.add('hidden');
+            await loadLedger(q);
+            return;
+          }
+          // Try by meter serial
+          const snap = await getDocs(query(collection(db, 'consumers'), where('meter_serial_no', '==', q), limit(1)));
+          if (!snap.empty) {
+            cinNo = snap.docs[0].id;
+            document.getElementById('searchSection').classList.add('hidden');
+            await loadLedger(cinNo);
+            return;
+          }
+          document.getElementById('searchError').textContent = 'No consumer found.';
+          document.getElementById('searchError').classList.remove('hidden');
+        } catch (err) {
+          document.getElementById('searchError').textContent = 'Search failed. Please check your connection.';
+          document.getElementById('searchError').classList.remove('hidden');
+        } finally {
+          document.getElementById('loadingSpinner').classList.add('hidden');
+        }
+      };
+      document.getElementById('searchBtn').addEventListener('click', doSearch);
+      document.getElementById('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+    }
+
+    function formatTs(ts) {
+      if (!ts) return '—';
+      let d;
+      if (ts.toDate) d = ts.toDate();
+      else d = new Date(ts);
+      return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+    }
+
+    function formatCurrency(n) {
+      if (n == null) return '—';
+      return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function statusBadgeClass(status) {
+      const map = {
+        'Active':'status-badge--active','Inactive':'status-badge--inactive',
+        'Meter Faulty':'status-badge--meter-faulty','Disconnected':'status-badge--disconnected','Disputed':'status-badge--disputed'
+      };
+      return map[status] || 'status-badge--inactive';
+    }
+
+    async function loadLedger(cin) {
+      try {
+        const twelveMonthsAgo = new Date();
+        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+        const cutoffTs = Timestamp.fromDate(twelveMonthsAgo);
+
+        const [cDoc, readingsSnap, paymentsSnap, openCyclesSnap] = await Promise.all([
+          getDoc(doc(db, 'consumers', cin)),
+          getDocs(query(
+            collection(db, 'readings'),
+            where('cin_no', '==', cin),
+            where('submitted_at', '>=', cutoffTs),
+            orderBy('submitted_at', 'desc')
+          )),
+          getDocs(query(
+            collection(db, 'payments'),
+            where('cin_no', '==', cin),
+            where('payment_date', '>=', formatDateForQuery(twelveMonthsAgo)),
+            orderBy('payment_date', 'desc')
+          )),
+          getDocs(query(
+            collection(db, 'billing_cycles'),
+            where('status', '==', 'open')
+          ))
+        ]);
+
+        if (!cDoc.exists()) {
+          showError('Consumer not found.');
+          return;
+        }
+
+        const consumer = { cin_no: cDoc.id, ...cDoc.data() };
+        const readings = readingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const payments = paymentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const openCycles = openCyclesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Render consumer info
+        const rows = [
+          ['CIN No.', consumer.cin_no],
+          ['Name', consumer.name],
+          ['Zone', consumer.zone],
+          ['Category', consumer.category],
+          ['Meter Size', consumer.meter_size],
+          ['Meter Serial', consumer.meter_serial_no],
+          ['Contact', consumer.contact_number || '—'],
+          ['APL/BPL', consumer.apl_bpl || '—'],
+          ['Status', `<span class="status-badge ${statusBadgeClass(consumer.consumer_status)}">${consumer.consumer_status || '—'}</span>`],
+          ['Address', [consumer.address_area_location, consumer.address_landmark, consumer.address_pin_code].filter(Boolean).join(', ') || '—'],
+        ];
+        document.getElementById('consumerInfo').innerHTML = rows.map(([l,v]) =>
+          `<div class="info-panel__row"><span class="info-panel__label">${l}</span><span class="info-panel__value">${v||'—'}</span></div>`
+        ).join('');
+
+        // Balances
+        document.getElementById('balanceInfo').innerHTML = `
+          <div class="info-panel__row">
+            <span class="info-panel__label">Outstanding Balance</span>
+            <span class="info-panel__value text-danger fw-bold">${formatCurrency(consumer.outstanding_balance || 0)}</span>
+          </div>
+          <div class="info-panel__row">
+            <span class="info-panel__label">Credit Balance</span>
+            <span class="info-panel__value text-success fw-bold">${formatCurrency(consumer.credit_balance || 0)}</span>
+          </div>`;
+
+        // Current cycle status
+        let cycleStatusText = 'No active billing cycle for this zone';
+        const consumerZone = consumer.zone;
+        const relevantCycle = openCycles.find(c => c.zones && c.zones.includes(consumerZone));
+        if (relevantCycle) {
+          const cycleReading = readings.find(r => r.cycle_id === relevantCycle.id);
+          if (cycleReading) {
+            if (cycleReading.status === 'finalized') cycleStatusText = 'Current Cycle: ✅ Reading submitted';
+            else if (cycleReading.status === 'skipped') cycleStatusText = `Current Cycle: ⚠ Cannot Read (${cycleReading.cannot_read_reason || 'reason not recorded'})`;
+            else cycleStatusText = 'Current Cycle: Pending';
+          } else {
+            cycleStatusText = 'Current Cycle: Pending (reading not yet submitted)';
+          }
+        }
+        document.getElementById('cycleStatus').innerHTML = `
+          <div class="info-panel__row">
+            <span class="info-panel__label">Cycle Status</span>
+            <span class="info-panel__value">${cycleStatusText}</span>
+          </div>`;
+
+        // Bills table
+        const billsBody = document.getElementById('billsBody');
+        if (readings.length === 0) {
+          billsBody.innerHTML = '<tr><td colspan="4" class="text-muted text-center">No readings in the last 12 months.</td></tr>';
+        } else {
+          billsBody.innerHTML = readings.map(r => {
+            const bill = r.full_bill_breakdown;
+            const total = bill ? bill.total_amount : null;
+            const consumption = r.consumption != null ? `${Number(r.consumption).toFixed(2)} KL` : '—';
+            const date = r.reading_date || formatTs(r.submitted_at);
+            let statusText = '—';
+            if (r.status === 'skipped') statusText = 'Cannot Read';
+            else if (total != null) {
+              const paid = payments.some(p => p.cycle_id === r.cycle_id);
+              statusText = paid ? 'Paid' : 'Unpaid';
+            }
+            return `<tr>
+              <td>${date}</td>
+              <td>${consumption}</td>
+              <td class="right">${total != null ? formatCurrency(total) : '—'}</td>
+              <td>${statusText}</td>
+            </tr>`;
+          }).join('');
+        }
+
+        // Payments table
+        const paymentsBody = document.getElementById('paymentsBody');
+        if (payments.length === 0) {
+          paymentsBody.innerHTML = '<tr><td colspan="3" class="text-muted text-center">No payments in the last 12 months.</td></tr>';
+        } else {
+          paymentsBody.innerHTML = payments.map(p => `
+            <tr>
+              <td>${p.payment_date || '—'}</td>
+              <td>${p.payment_mode || '—'}</td>
+              <td class="right amount-credit">${formatCurrency(p.amount)}</td>
+            </tr>`
+          ).join('');
+        }
+
+        document.getElementById('pageContent').classList.remove('hidden');
+      } catch (err) {
+        showError('Failed to load ledger. Please check your connection and try again.');
+      } finally {
+        document.getElementById('loadingSpinner').classList.add('hidden');
+      }
+    }
+
+    function formatDateForQuery(date) {
+      const dd = String(date.getDate()).padStart(2,'0');
+      const mm = String(date.getMonth()+1).padStart(2,'0');
+      return `${dd}-${mm}-${date.getFullYear()}`;
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorMsg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      document.getElementById('pageContent').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>

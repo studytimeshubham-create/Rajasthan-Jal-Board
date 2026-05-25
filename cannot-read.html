@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cannot Read — RJB</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header__brand">
+      <img class="header__logo" src="rjb-logo.png" alt="RJB Logo" onerror="this.style.display='none'">
+      <span class="header__title">Rajasthan Jal Board</span>
+    </div>
+    <div class="header__right">
+      <span class="header__user" id="headerUser"></span>
+      <button class="header__logout" id="logoutBtn">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <div id="loadingSpinner" class="loading-spinner">
+        <div class="loading-spinner__ring"></div>
+        <span>Loading consumer…</span>
+      </div>
+
+      <div id="pageContent" class="hidden">
+        <div id="errorMsg" class="alert alert-danger hidden"></div>
+
+        <!-- Consumer Info -->
+        <div class="card section">
+          <p class="section-title">Consumer Information</p>
+          <div class="info-panel" id="consumerInfo"></div>
+        </div>
+
+        <!-- Cannot Read Form -->
+        <div id="formSection" class="card section">
+          <p class="section-title">Cannot Read — Record Reason</p>
+          <p class="text-muted mb-1" style="font-size:0.9rem;">Select the reason why the meter could not be read. The previous reading will remain unchanged.</p>
+
+          <div class="form-group">
+            <label for="reasonSelect">Reason</label>
+            <select id="reasonSelect">
+              <option value="">— Select a reason —</option>
+              <option value="Locked Premises">Locked Premises</option>
+              <option value="Meter Faulty">Meter Faulty</option>
+              <option value="Meter Not Found">Meter Not Found</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="notesInput">Additional Notes (optional)</label>
+            <textarea id="notesInput" rows="3" placeholder="Any additional information…"></textarea>
+          </div>
+
+          <button class="btn btn-primary btn-full" id="submitBtn">Record Cannot Read</button>
+        </div>
+
+        <!-- Success Message -->
+        <div id="successSection" class="hidden">
+          <div class="confirmation-box">
+            <div class="confirmation-box__icon">📋</div>
+            <div class="confirmation-box__name" id="successName"></div>
+            <div class="confirmation-box__detail">Cannot Read recorded successfully</div>
+          </div>
+          <div class="section mt-1">
+            <button class="btn btn-primary btn-full" id="searchAnotherBtn">Search Another Consumer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import {
+      getFirestore, doc, getDoc, collection, addDoc, serverTimestamp
+    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { firebaseConfig } from './firebase_config.js';
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const params = new URLSearchParams(window.location.search);
+    const cinNo = params.get('cin');
+
+    let consumer = null;
+    let readerProfile = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) { window.location.href = 'index.html'; return; }
+      readerProfile = JSON.parse(sessionStorage.getItem('meter_reader_profile') || '{}');
+      document.getElementById('headerUser').textContent = readerProfile.name || user.email;
+
+      if (!cinNo) {
+        showError('No consumer specified. Please go back and search again.');
+        document.getElementById('loadingSpinner').classList.add('hidden');
+        document.getElementById('pageContent').classList.remove('hidden');
+        return;
+      }
+      await loadConsumer();
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await signOut(auth);
+      sessionStorage.clear();
+      window.location.href = 'index.html';
+    });
+
+    document.getElementById('searchAnotherBtn').addEventListener('click', () => {
+      window.location.href = 'search.html';
+    });
+
+    async function loadConsumer() {
+      try {
+        const cDoc = await getDoc(doc(db, 'consumers', cinNo));
+        if (!cDoc.exists()) {
+          showError('Consumer not found. Please go back and search again.');
+          return;
+        }
+        consumer = { cin_no: cDoc.id, ...cDoc.data() };
+        renderConsumerInfo();
+        document.getElementById('submitBtn').addEventListener('click', submitCannotRead);
+      } catch (err) {
+        showError('Failed to load consumer. Please check your connection and try again.');
+      } finally {
+        document.getElementById('loadingSpinner').classList.add('hidden');
+        document.getElementById('pageContent').classList.remove('hidden');
+      }
+    }
+
+    function statusBadgeClass(status) {
+      const map = {
+        'Active':'status-badge--active','Inactive':'status-badge--inactive',
+        'Meter Faulty':'status-badge--meter-faulty','Disconnected':'status-badge--disconnected','Disputed':'status-badge--disputed'
+      };
+      return map[status] || 'status-badge--inactive';
+    }
+
+    function renderConsumerInfo() {
+      const rows = [
+        ['CIN No.', consumer.cin_no],
+        ['Name', consumer.name],
+        ['Zone', consumer.zone],
+        ['Category', consumer.category],
+        ['Meter Size', consumer.meter_size],
+        ['Meter Serial', consumer.meter_serial_no],
+        ['Last Reading', consumer.last_reading != null ? `${Number(consumer.last_reading).toFixed(2)} KL` : '—'],
+        ['Status', `<span class="status-badge ${statusBadgeClass(consumer.consumer_status)}">${consumer.consumer_status || '—'}</span>`],
+      ];
+      document.getElementById('consumerInfo').innerHTML = rows.map(([l,v]) =>
+        `<div class="info-panel__row"><span class="info-panel__label">${l}</span><span class="info-panel__value">${v||'—'}</span></div>`
+      ).join('');
+    }
+
+    async function submitCannotRead() {
+      const reason = document.getElementById('reasonSelect').value;
+      const notes = document.getElementById('notesInput').value.trim();
+
+      if (!reason) {
+        showError('Please select a reason.');
+        return;
+      }
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Submitting…';
+      hideError();
+
+      try {
+        await addDoc(collection(db, 'readings'), {
+          cin_no: consumer.cin_no,
+          cycle_id: null,
+          previous_reading: consumer.last_reading != null ? consumer.last_reading : null,
+          current_reading: null,
+          consumption: null,
+          reading_date: todayStr(),
+          reading_time: new Date().toTimeString().slice(0,5),
+          reader_uid: readerProfile.uid,
+          reader_name: readerProfile.name,
+          full_bill_breakdown: null,
+          status: 'skipped',
+          cannot_read_reason: reason,
+          notes: notes || null,
+          edited_by_admin: false,
+          submitted_at: serverTimestamp(),
+          edit_window_expiry: null
+        });
+        // Do NOT update consumer last_reading
+
+        document.getElementById('formSection').classList.add('hidden');
+        document.getElementById('successName').textContent = consumer.name;
+        document.getElementById('successSection').classList.remove('hidden');
+      } catch (err) {
+        showError('Submission failed. Please check your connection and try again.');
+        btn.disabled = false;
+        btn.textContent = 'Record Cannot Read';
+      }
+    }
+
+    function todayStr() {
+      const d = new Date();
+      const dd = String(d.getDate()).padStart(2,'0');
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      return `${dd}-${mm}-${d.getFullYear()}`;
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorMsg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+    function hideError() {
+      document.getElementById('errorMsg').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>

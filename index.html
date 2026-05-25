@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meter Reader Login — Rajasthan Jal Board</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="login-page">
+  <div class="login-card">
+    <div class="login-card__logo">
+      <img src="rjb-logo.png" alt="RJB Logo" onerror="this.style.display='none'">
+    </div>
+    <div class="login-card__title">Meter Reader Portal</div>
+    <div class="login-card__subtitle">Rajasthan Jal Board</div>
+
+    <div id="lockoutAlert" class="alert alert-danger hidden">
+      Too many failed attempts. Please wait <span id="lockoutTimer"></span> before trying again.
+    </div>
+    <div id="errorMsg" class="alert alert-danger hidden"></div>
+
+    <div class="form-group">
+      <label for="usernameInput">Username</label>
+      <input type="text" id="usernameInput" placeholder="Enter your username" autocomplete="username" inputmode="text">
+    </div>
+    <div class="form-group">
+      <label for="passwordInput">Password</label>
+      <input type="password" id="passwordInput" placeholder="Enter your password" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary btn-full" id="loginBtn">Login</button>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { firebaseConfig } from './firebase_config.js';
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Check if already logged in
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        window.location.href = 'search.html';
+      }
+    });
+
+    const LOCKOUT_KEY = 'rjb_login_attempts';
+    const MAX_ATTEMPTS = 5;
+    const LOCKOUT_MS = 15 * 60 * 1000;
+
+    function getLockoutState() {
+      try {
+        return JSON.parse(localStorage.getItem(LOCKOUT_KEY) || '{"count":0,"firstAt":0,"lockedAt":0}');
+      } catch { return {count:0, firstAt:0, lockedAt:0}; }
+    }
+    function saveLockoutState(s) {
+      localStorage.setItem(LOCKOUT_KEY, JSON.stringify(s));
+    }
+    function clearLockout() {
+      localStorage.removeItem(LOCKOUT_KEY);
+    }
+
+    let lockoutInterval = null;
+    function checkLockout() {
+      const s = getLockoutState();
+      if (!s.lockedAt) return false;
+      const remaining = LOCKOUT_MS - (Date.now() - s.lockedAt);
+      if (remaining <= 0) {
+        clearLockout();
+        return false;
+      }
+      showLockout(remaining);
+      return true;
+    }
+    function showLockout(remainingMs) {
+      document.getElementById('loginBtn').disabled = true;
+      document.getElementById('lockoutAlert').classList.remove('hidden');
+      if (lockoutInterval) clearInterval(lockoutInterval);
+      function update() {
+        const s = getLockoutState();
+        const rem = LOCKOUT_MS - (Date.now() - s.lockedAt);
+        if (rem <= 0) {
+          clearLockout();
+          clearInterval(lockoutInterval);
+          document.getElementById('loginBtn').disabled = false;
+          document.getElementById('lockoutAlert').classList.add('hidden');
+          return;
+        }
+        const m = Math.floor(rem / 60000);
+        const sec = Math.floor((rem % 60000) / 1000);
+        document.getElementById('lockoutTimer').textContent = `${m}:${sec.toString().padStart(2,'0')}`;
+      }
+      update();
+      lockoutInterval = setInterval(update, 1000);
+    }
+
+    function recordFailure() {
+      const s = getLockoutState();
+      const now = Date.now();
+      if (!s.firstAt || now - s.firstAt > LOCKOUT_MS) {
+        s.count = 1; s.firstAt = now; s.lockedAt = 0;
+      } else {
+        s.count++;
+      }
+      if (s.count >= MAX_ATTEMPTS) {
+        s.lockedAt = now;
+      }
+      saveLockoutState(s);
+      return s.count >= MAX_ATTEMPTS;
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorMsg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+    function hideError() {
+      document.getElementById('errorMsg').classList.add('hidden');
+    }
+
+    checkLockout();
+
+    document.getElementById('loginBtn').addEventListener('click', doLogin);
+    document.getElementById('passwordInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doLogin();
+    });
+
+    async function doLogin() {
+      if (checkLockout()) return;
+      hideError();
+
+      let username = document.getElementById('usernameInput').value.trim();
+      const password = document.getElementById('passwordInput').value;
+
+      if (!username || !password) {
+        showError('Please enter your username and password.');
+        return;
+      }
+
+      // Append domain if no @ present
+      if (!username.includes('@')) {
+        username = username + '@rjb.local';
+      }
+
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = true;
+      btn.textContent = 'Logging in…';
+
+      try {
+        const cred = await signInWithEmailAndPassword(auth, username, password);
+        const uid = cred.user.uid;
+
+        // Fetch meter reader profile
+        const readerDoc = await getDoc(doc(db, 'meter_readers', uid));
+        if (!readerDoc.exists()) {
+          await auth.signOut();
+          showError('Your account was not found. Please contact your administrator.');
+          return;
+        }
+        const readerData = readerDoc.data();
+        if (!readerData.is_active) {
+          await auth.signOut();
+          showError('Your account has been deactivated. Please contact your administrator.');
+          return;
+        }
+
+        // Fetch charges config
+        const ccDoc = await getDoc(doc(db, 'charges_config', 'current'));
+        if (!ccDoc.exists()) {
+          await auth.signOut();
+          showError('Could not load billing configuration. Please contact your administrator.');
+          return;
+        }
+
+        // Store in sessionStorage
+        sessionStorage.setItem('charges_config', JSON.stringify(ccDoc.data()));
+        sessionStorage.setItem('meter_reader_profile', JSON.stringify({
+          uid: uid,
+          name: readerData.name,
+          employee_id: readerData.employee_id,
+          zone: readerData.zone || null,
+          username: readerData.username,
+          phone_number: readerData.phone_number || ''
+        }));
+
+        clearLockout();
+        window.location.href = 'search.html';
+      } catch (err) {
+        const locked = recordFailure();
+        const s = getLockoutState();
+        const remaining = MAX_ATTEMPTS - s.count;
+        if (locked) {
+          showLockout(LOCKOUT_MS);
+          hideError();
+        } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+          showError(`Incorrect username or password. ${remaining > 0 ? remaining + ' attempt(s) remaining before lockout.' : ''}`);
+        } else if (err.code === 'auth/user-disabled') {
+          showError('Your account has been disabled. Please contact your administrator.');
+        } else if (err.code === 'auth/too-many-requests') {
+          showError('Too many login attempts. Please try again later.');
+        } else {
+          showError('Login failed. Please check your connection and try again.');
+        }
+        btn.disabled = false;
+        btn.textContent = 'Login';
+      }
+    }
+  </script>
+</body>
+</html>
