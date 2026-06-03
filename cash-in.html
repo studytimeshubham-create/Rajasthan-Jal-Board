@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rajasthan Jal Board - Cash In Payment</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-title">💧 RJB Mobile</div>
+    <div class="header-user">
+      <span id="header-user-name">Cashier</span>
+      <button id="logout-btn" class="logout-btn">Logout</button>
+    </div>
+  </header>
+
+  <!-- Content Container -->
+  <div class="container">
+    <div style="margin-top: 15px; margin-bottom: 20px;">
+      <h1 style="font-size: 1.5rem; color: var(--primary); font-weight: bold;">Cash In Payment</h1>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">Record cash collection from consumer.</p>
+    </div>
+
+    <div id="critical-error-container"></div>
+
+    <div id="main-content" style="display: none;">
+      <!-- Consumer Info Card -->
+      <div class="card">
+        <h2>Consumer Details</h2>
+        <div class="info-panel">
+          <div>
+            <span class="info-label">Name</span>
+            <span id="info-name" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">CIN No</span>
+            <span id="info-cin" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">Category</span>
+            <span id="info-category" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">Meter Serial</span>
+            <span id="info-meter-serial" class="info-value"></span>
+          </div>
+          <div id="sewerage-data-container" style="grid-column: span 2; display: none;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-top: 8px; border-top: 1px solid #eee; padding-top: 8px;">
+                <div>
+                    <span class="info-label">Sewerage Sub-Cat</span>
+                    <span id="info-sub-cat" class="info-value"></span>
+                </div>
+                <div>
+                    <span class="info-label">Rooms / Area</span>
+                    <span id="info-metric" class="info-value"></span>
+                </div>
+            </div>
+          </div>
+        </div>
+        <div class="balance-row" style="margin-top: 10px;">
+          <div>
+            <span class="info-label">Outstanding</span>
+            <span id="info-outstanding" class="info-value" style="color: var(--danger); font-weight: bold;"></span>
+          </div>
+          <div style="text-align: right;">
+            <span class="info-label">Credit</span>
+            <span id="info-credit" class="info-value" style="color: var(--success); font-weight: bold;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Form Card -->
+      <div class="card">
+        <h2>Enter Payment</h2>
+        <div id="alert-container"></div>
+
+        <form id="payment-form">
+          <div class="form-group">
+            <label for="amount">Amount (₹)</label>
+            <input type="number" id="amount" class="reading-input" step="0.01" min="1" placeholder="0.00" inputmode="decimal" required>
+          </div>
+
+          <div class="form-group">
+            <label for="payment-date">Payment Date</label>
+            <input type="date" id="payment-date" required>
+          </div>
+
+          <div class="form-group">
+            <label for="notes">Notes (Optional)</label>
+            <textarea id="notes" placeholder="Any remarks..."></textarea>
+          </div>
+
+          <button type="submit" id="submit-btn" class="btn btn-success">Record Payment</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="success-panel" class="card confirmation-box" style="display: none; margin-top: 20px;">
+      <div class="confirmation-icon">✓</div>
+      <h2 style="border-bottom: none;">Payment Recorded</h2>
+      <p id="success-msg" style="margin-bottom: 20px;"></p>
+      <button id="print-receipt-btn" class="btn btn-success" style="margin-bottom: 10px;">Print Receipt</button>
+      <button onclick="window.location.href='search.html'" class="btn btn-primary">Search Another Consumer</button>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-spinner-overlay">
+    <div style="text-align: center;">
+      <div class="spinner"></div>
+      <p id="loading-text" style="margin-top: 12px; font-weight: bold; color: var(--primary);">Processing...</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./firebase_config.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { doc, getDoc, getDocs, runTransaction, serverTimestamp, collection, query, where } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { formatCurrency } from "./billing-engine.js";
+
+    const loadingOverlay = document.getElementById("loading-overlay");
+    const loadingText = document.getElementById("loading-text");
+    const mainContent = document.getElementById("main-content");
+    const successPanel = document.getElementById("success-panel");
+    const alertContainer = document.getElementById("alert-container");
+    const paymentForm = document.getElementById("payment-form");
+    const logoutBtn = document.getElementById("logout-btn");
+
+    let cin = "";
+    let consumer = null;
+    let currentUserProfile = null;
+    let lastReceipt = null;
+
+    // Default date to today
+    document.getElementById("payment-date").value = new Date().toISOString().split("T")[0];
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "index.html";
+        return;
+      }
+
+      const profileStr = sessionStorage.getItem("meter_reader_profile");
+      if (profileStr) {
+        currentUserProfile = JSON.parse(profileStr);
+        if (currentUserProfile.role !== "Cashier") {
+            alert("Unauthorized access. Cashier role required.");
+            window.location.href = "search.html";
+            return;
+        }
+        document.getElementById("header-user-name").textContent = currentUserProfile.name;
+      }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      cin = urlParams.get("cin");
+
+      if (!cin) {
+        window.location.href = "search.html";
+        return;
+      }
+
+      loadConsumer();
+    });
+
+    async function loadConsumer() {
+        loadingText.textContent = "Loading consumer...";
+        loadingOverlay.style.display = "flex";
+        try {
+            const docSnap = await getDoc(doc(db, "consumers", cin));
+            if (docSnap.exists()) {
+                consumer = docSnap.data();
+                consumer.cin_no = docSnap.id;
+                document.getElementById("info-name").textContent = consumer.name;
+                document.getElementById("info-cin").textContent = consumer.cin_no;
+                document.getElementById("info-category").textContent = consumer.category;
+                document.getElementById("info-meter-serial").textContent = consumer.meter_serial_no || "—";
+
+                if (consumer.has_sewer_connection) {
+                    document.getElementById("sewerage-data-container").style.display = "block";
+                    document.getElementById("info-sub-cat").textContent = consumer.sewerage_sub_category || "Standard";
+
+                    if (consumer.sewerage_sub_category === "Hotel") {
+                        document.getElementById("info-metric").textContent = (consumer.num_rooms || 0) + " Rooms";
+                    } else if (consumer.sewerage_sub_category === "Domestic (Own Supply)") {
+                        document.getElementById("info-metric").textContent = (consumer.plot_area_sqmtr || 0) + " sq.mtr";
+                    } else {
+                        document.getElementById("info-metric").textContent = "N/A";
+                    }
+                }
+
+                document.getElementById("info-outstanding").textContent = formatCurrency(consumer.outstanding_balance);
+                document.getElementById("info-credit").textContent = formatCurrency(consumer.credit_balance);
+                mainContent.style.display = "block";
+            } else {
+                alert("Consumer not found.");
+                window.location.href = "search.html";
+            }
+        } catch (e) {
+            console.error(e);
+        }
+        loadingOverlay.style.display = "none";
+    }
+
+    paymentForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const amount = parseFloat(document.getElementById("amount").value);
+        const pDateVal = document.getElementById("payment-date").value;
+        const notes = document.getElementById("notes").value.trim();
+
+        if (isNaN(amount) || amount <= 0) return;
+
+        const dateParts = pDateVal.split("-");
+        const formattedDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+
+        loadingText.textContent = "Recording payment...";
+        loadingOverlay.style.display = "flex";
+
+        try {
+            let activeCycleId = null;
+            const cyclesSnap = await getDocs(query(collection(db, "billing_cycles"), where("status", "==", "open")));
+            cyclesSnap.forEach((cycleDoc) => {
+                const cycle = cycleDoc.data();
+                const zones = cycle.zones || [];
+                if (zones.map((z) => Number(z)).includes(Number(consumer.zone))) {
+                    activeCycleId = cycleDoc.id;
+                }
+            });
+            const receiptNum = `WEB-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+            let balancesAfter = { outstanding: 0, credit: 0 };
+            await runTransaction(db, async (transaction) => {
+                const consumerRef = doc(db, "consumers", cin);
+                const consumerSnap = await transaction.get(consumerRef);
+                if (!consumerSnap.exists()) throw "Consumer no longer exists.";
+
+                const freshConsumer = consumerSnap.data();
+                const currOutstanding = parseFloat(freshConsumer.outstanding_balance || 0);
+                const currCredit = parseFloat(freshConsumer.credit_balance || 0);
+
+                let newOutstanding = 0;
+                let newCredit = 0;
+
+                if (amount <= currOutstanding) {
+                    newOutstanding = currOutstanding - amount;
+                    newCredit = currCredit;
+                } else {
+                    newOutstanding = 0;
+                    newCredit = currCredit + (amount - currOutstanding);
+                }
+
+                // Create payment doc
+                const payRef = doc(collection(db, "payments"));
+                transaction.set(payRef, {
+                    cin_no: cin,
+                    amount: amount,
+                    payment_mode: "Cash",
+                    payment_date: formattedDate,
+                    entry_date: new Date().toLocaleDateString("en-GB").replace(/\//g, "-"),
+                    cycle_id: activeCycleId,
+                    notes: notes || "Recorded via Web App",
+                    received_by: currentUserProfile.name,
+                    receipt_number: receiptNum,
+                    created_at: serverTimestamp()
+                });
+
+                transaction.update(consumerRef, {
+                    outstanding_balance: newOutstanding,
+                    credit_balance: newCredit,
+                    updated_at: serverTimestamp()
+                });
+                balancesAfter = { outstanding: newOutstanding, credit: newCredit };
+            });
+
+            mainContent.style.display = "none";
+            document.getElementById("success-msg").textContent = `Payment of ${formatCurrency(amount)} recorded successfully for ${consumer.name}.`;
+            lastReceipt = {
+                receipt_number: receiptNum,
+                cin_no: cin,
+                name: consumer.name,
+                zone: consumer.zone,
+                amount,
+                payment_date: formattedDate,
+                payment_mode: "Cash",
+                received_by: currentUserProfile.name,
+                cycle_id: activeCycleId || "",
+                outstanding_balance: balancesAfter.outstanding,
+                credit_balance: balancesAfter.credit
+            };
+            successPanel.style.display = "block";
+        } catch (error) {
+            console.error(error);
+            alert("Error recording payment: " + error);
+        }
+        loadingOverlay.style.display = "none";
+    });
+
+    document.getElementById("print-receipt-btn").addEventListener("click", () => {
+        if (!lastReceipt) return;
+        const win = window.open("", "_blank");
+        if (!win) {
+            alert("Please allow popups to print the receipt.");
+            return;
+        }
+        const receiptRows = [
+            ["Receipt No", lastReceipt.receipt_number],
+            ["CIN", lastReceipt.cin_no],
+            ["Name", lastReceipt.name],
+            ["Zone", lastReceipt.zone],
+            ["Cycle", lastReceipt.cycle_id || "-"],
+            ["Payment Date", lastReceipt.payment_date],
+            ["Mode", lastReceipt.payment_mode],
+            ["Received By", lastReceipt.received_by],
+            ["Amount", formatCurrency(lastReceipt.amount)],
+            ["Outstanding After", formatCurrency(lastReceipt.outstanding_balance)],
+            ["Credit After", formatCurrency(lastReceipt.credit_balance)]
+        ];
+        win.document.title = `Receipt ${lastReceipt.receipt_number}`;
+        win.document.head.replaceChildren();
+        win.document.body.replaceChildren();
+        const style = win.document.createElement("style");
+        style.textContent = `
+            body { font-family: Arial, sans-serif; color: #111; padding: 24px; }
+            .receipt { max-width: 420px; margin: 0 auto; border: 1px solid #333; padding: 18px; }
+            h1 { font-size: 18px; margin: 0; text-align: center; }
+            h2 { font-size: 14px; margin: 4px 0 18px; text-align: center; font-weight: normal; }
+            table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+            td { padding: 6px 0; border-bottom: 1px dashed #ccc; font-size: 13px; }
+            td:last-child { text-align: right; font-weight: bold; }
+            tr:nth-last-child(3) td:last-child { font-size: 20px; }
+            .footer { margin-top: 24px; font-size: 11px; text-align: center; }
+            @media print { body { padding: 0; } .receipt { border: none; } }
+        `;
+        win.document.head.appendChild(style);
+        const wrapper = win.document.createElement("div");
+        wrapper.className = "receipt";
+        const title = win.document.createElement("h1");
+        title.textContent = "Rajasthan Jal Board (PHED)";
+        const subTitle = win.document.createElement("h2");
+        subTitle.textContent = "Cash Payment Receipt";
+        const table = win.document.createElement("table");
+        receiptRows.forEach(([label, value]) => {
+            const tr = win.document.createElement("tr");
+            const labelTd = win.document.createElement("td");
+            const valueTd = win.document.createElement("td");
+            labelTd.textContent = label;
+            valueTd.textContent = value;
+            tr.append(labelTd, valueTd);
+            table.appendChild(tr);
+        });
+        const footer = win.document.createElement("div");
+        footer.className = "footer";
+        footer.textContent = "This is a computer-generated receipt.";
+        wrapper.append(title, subTitle, table, footer);
+        win.document.body.appendChild(wrapper);
+        setTimeout(() => {
+            win.focus();
+            win.print();
+        }, 100);
+    });
+
+    logoutBtn.addEventListener("click", async () => {
+      await signOut(auth);
+      sessionStorage.clear();
+      window.location.href = "index.html";
+    });
+  </script>
+</body>
+</html>

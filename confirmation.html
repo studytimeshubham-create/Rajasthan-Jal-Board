@@ -3,260 +3,369 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reading Submitted — RJB</title>
+  <title>Rajasthan Jal Board - Submission Confirmation</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <!-- Header -->
   <header class="header">
-    <div class="header__brand">
-      <img class="header__logo" src="rjb-logo.png" alt="RJB Logo" onerror="this.style.display='none'">
-      <span class="header__title">Rajasthan Jal Board</span>
-    </div>
-    <div class="header__right">
-      <span class="header__user" id="headerUser"></span>
-      <button class="header__logout" id="logoutBtn">Logout</button>
+    <div class="header-title">💧 RJB Mobile</div>
+    <div class="header-user">
+      <span id="header-user-name">Reader</span>
+      <button id="logout-btn" class="logout-btn">Logout</button>
     </div>
   </header>
 
-  <main>
-    <div class="container">
-      <div id="loadingSpinner" class="loading-spinner">
-        <div class="loading-spinner__ring"></div>
-        <span>Loading confirmation…</span>
+  <!-- Content Container -->
+  <div class="container">
+    <!-- Success Banner -->
+    <div class="card confirmation-box" style="margin-top: 15px;">
+      <div class="confirmation-icon">✓</div>
+      <h1 style="font-size: 1.4rem; color: var(--success); font-weight: bold; margin-bottom: 5px;">Reading Logged Successfully</h1>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">The meter reading has been saved and invoice calculated.</p>
+    </div>
+
+    <!-- Summary Details -->
+    <div class="card" id="summary-card" style="display: none;">
+      <h2>Invoice Summary</h2>
+      
+      <div class="info-panel" style="margin-bottom: 15px;">
+        <div>
+          <span class="info-label">Consumer Name</span>
+          <span id="sum-name" class="info-value"></span>
+        </div>
+        <div>
+          <span class="info-label">CIN No</span>
+          <span id="sum-cin" class="info-value"></span>
+        </div>
+        <div>
+          <span class="info-label">Reading Date</span>
+          <span id="sum-date" class="info-value"></span>
+        </div>
+        <div>
+          <span class="info-label">Consumption</span>
+          <span id="sum-consumption" class="info-value" style="font-weight: bold; color: var(--primary);"></span>
+        </div>
+        <div>
+          <span class="info-label">Previous Reading</span>
+          <span id="sum-prev" class="info-value"></span>
+        </div>
+        <div>
+          <span class="info-label">Submitted Reading</span>
+          <span id="sum-curr" class="info-value"></span>
+        </div>
       </div>
 
-      <div id="pageContent" class="hidden">
-        <div id="errorMsg" class="alert alert-danger hidden"></div>
-
-        <!-- Confirmation Box -->
-        <div class="confirmation-box" id="confirmBox">
-          <div class="confirmation-box__icon">✅</div>
-          <div class="confirmation-box__name" id="confName"></div>
-          <div class="confirmation-box__amount" id="confAmount"></div>
-          <div class="confirmation-box__detail" id="confDetail"></div>
+      <div class="balance-row" style="margin-bottom: 15px;">
+        <div>
+          <span class="info-label">Outstanding Balance</span>
+          <span id="sum-outstanding" class="info-value" style="color: var(--danger);">₹0.00</span>
         </div>
-
-        <!-- Summary Card -->
-        <div class="card section">
-          <p class="section-title">Reading Summary</p>
-          <div class="info-panel" id="readingSummary"></div>
-
-          <!-- Bill Breakdown (collapsible) -->
-          <details class="mt-1">
-            <summary style="cursor:pointer;color:var(--primary);font-weight:600;padding:0.5rem 0;">View Bill Breakdown</summary>
-            <div class="bill-preview mt-1" id="billBreakdown">
-              <div class="bill-preview__header">Bill Breakdown</div>
-              <table>
-                <tbody id="billBreakdownBody"></tbody>
-                <tfoot>
-                  <tr class="bill-preview__total">
-                    <td>TOTAL</td>
-                    <td id="billBreakdownTotal"></td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </details>
+        <div style="text-align: right;">
+          <span class="info-label">Credit Balance Applied</span>
+          <span id="sum-credit" class="info-value" style="color: var(--success); font-weight: bold;">-₹0.00</span>
         </div>
+      </div>
 
-        <!-- Timer Bar (5 min edit window) -->
-        <div id="timerSection" class="card section">
-          <div class="timer-bar" id="timerBar">
-            <div class="timer-bar__label">
-              <span>Edit window closes in</span>
-              <span class="timer-bar__countdown" id="timerDisplay">5:00</span>
-            </div>
-            <div class="timer-bar__track">
-              <div class="timer-bar__fill" id="timerFill" style="width:100%"></div>
-            </div>
-          </div>
-          <button class="btn btn-secondary btn-full mt-1" id="editBtn">Edit Reading</button>
-        </div>
+      <div style="text-align: center; background-color: #f7f9fc; border: 1.5px solid var(--primary); padding: 15px; border-radius: var(--radius); margin-bottom: 20px;">
+        <span class="info-label" style="font-size: 0.9rem; color: var(--primary);">Total Amount Due</span>
+        <div id="sum-total" style="font-size: 2.2rem; font-weight: bold; color: var(--primary); margin-top: 4px;">₹0.00</div>
+      </div>
 
-        <!-- After timer expires: Correction Query button -->
-        <div id="correctionSection" class="card section hidden">
-          <p class="text-muted" style="font-size:0.9rem;">The 5-minute edit window has closed.</p>
-          <button class="btn btn-secondary btn-full mt-1" id="correctionBtn">Raise Correction Query</button>
+      <!-- Collapsible Invoice Details -->
+      <details>
+        <summary>View Complete Invoice Breakdown</summary>
+        <div style="padding-top: 10px;">
+          <table class="bill-table" style="font-size: 0.8rem; width: 100%;">
+            <tbody id="slab-breakdown-rows">
+              <!-- Slab rows inserted here dynamically -->
+            </tbody>
+          </table>
+          <table class="bill-table" style="font-size: 0.8rem; width: 100%; border-top: 1px dashed var(--border); padding-top: 8px;">
+            <tbody>
+              <tr>
+                <td>Fixed Monthly Charge</td>
+                <td id="breakdown-fixed" class="amount">₹0.00</td>
+              </tr>
+              <tr>
+                <td>Meter Service Charge</td>
+                <td id="breakdown-meter-svc" class="amount">₹0.00</td>
+              </tr>
+              <tr>
+                <td>Sewerage Tax</td>
+                <td id="breakdown-sewerage-tax" class="amount">₹0.00</td>
+              </tr>
+              <tr>
+                <td>STP Charge</td>
+                <td id="breakdown-stp-charge" class="amount">₹0.00</td>
+              </tr>
+              <tr>
+                <td>IDS Surcharge (<span id="breakdown-ids-pct">0</span>%)</td>
+                <td id="breakdown-ids-charge" class="amount">₹0.00</td>
+              </tr>
+              <tr style="font-weight: bold;">
+                <td>Current Month Total</td>
+                <td id="breakdown-subtotal" class="amount">₹0.00</td>
+              </tr>
+              <tr style="color: var(--danger);">
+                <td>Previous Outstanding</td>
+                <td id="breakdown-outstanding" class="amount">₹0.00</td>
+              </tr>
+              <tr style="color: var(--success); font-weight: bold;">
+                <td>Credit Applied</td>
+                <td id="breakdown-credit" class="amount">-₹0.00</td>
+              </tr>
+              <tr style="font-weight: bold; border-top: 1.5px solid var(--text); font-size: 0.95rem;">
+                <td>Grand Total</td>
+                <td id="breakdown-total" class="amount">₹0.00</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
+      </details>
+    </div>
 
-        <!-- Navigation -->
-        <div class="btn-group section">
-          <button class="btn btn-primary flex-1" id="searchAnotherBtn">Search Another Consumer</button>
-          <button class="btn btn-secondary flex-1" id="myReadingsBtn">My Readings</button>
-        </div>
+    <!-- 5-Minute Timer Card -->
+    <div class="card" id="timer-card" style="display: none;">
+      <h2>Submission Timer Control</h2>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">You can directly edit your reading entry within a 5-minute window without approval. After the window closes, corrections require raising an admin query.</p>
+      
+      <div class="timer-container">
+        <div id="timer-bar" class="timer-bar"></div>
+        <div id="timer-label" class="timer-label">Checking window...</div>
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button id="edit-btn" class="btn btn-primary" style="display: none;">✏️ Edit Entry</button>
+        <button id="correction-btn" class="btn btn-danger" style="display: none;">⚠️ Raise Correction Query</button>
       </div>
     </div>
-  </main>
+
+    <!-- Navigation Shortcuts -->
+    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px; margin-bottom: 20px;">
+      <button onclick="window.location.href='search.html'" class="btn btn-primary">🔍 Search Another Consumer</button>
+      <button onclick="window.location.href='my-readings.html'" class="btn btn-secondary">📋 My Readings Log</button>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-spinner-overlay">
+    <div style="text-align: center;">
+      <div class="spinner"></div>
+      <p style="margin-top: 12px; font-weight: bold; color: var(--primary);">Loading confirmation details...</p>
+    </div>
+  </div>
 
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-    import { firebaseConfig } from './firebase_config.js';
-    import { formatCurrency, formatKL } from './billing-engine.js';
+    import { auth, db } from "./firebase_config.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { formatCurrency, formatKL } from "./billing-engine.js";
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const loadingOverlay = document.getElementById("loading-overlay");
+    const summaryCard = document.getElementById("summary-card");
+    const timerCard = document.getElementById("timer-card");
+    const logoutBtn = document.getElementById("logout-btn");
 
-    const params = new URLSearchParams(window.location.search);
-    const readingId = params.get('reading_id');
+    // Form data fields
+    const sumName = document.getElementById("sum-name");
+    const sumCin = document.getElementById("sum-cin");
+    const sumDate = document.getElementById("sum-date");
+    const sumConsumption = document.getElementById("sum-consumption");
+    const sumPrev = document.getElementById("sum-prev");
+    const sumCurr = document.getElementById("sum-curr");
+    const sumOutstanding = document.getElementById("sum-outstanding");
+    const sumCredit = document.getElementById("sum-credit");
+    const sumTotal = document.getElementById("sum-total");
 
+    // Breakdown Details fields
+    const slabRows = document.getElementById("slab-breakdown-rows");
+    const breakdownFixed = document.getElementById("breakdown-fixed");
+    const breakdownMeterSvc = document.getElementById("breakdown-meter-svc");
+    const breakdownSewerageTax = document.getElementById("breakdown-sewerage-tax");
+    const breakdownSTPCharge = document.getElementById("breakdown-stp-charge");
+    const breakdownIdsPct = document.getElementById("breakdown-ids-pct");
+    const breakdownIdsCharge = document.getElementById("breakdown-ids-charge");
+    const breakdownSubtotal = document.getElementById("breakdown-subtotal");
+    const breakdownOutstanding = document.getElementById("breakdown-outstanding");
+    const breakdownCredit = document.getElementById("breakdown-credit");
+    const breakdownTotal = document.getElementById("breakdown-total");
+
+    // Timer elements
+    const timerBar = document.getElementById("timer-bar");
+    const timerLabel = document.getElementById("timer-label");
+    const editBtn = document.getElementById("edit-btn");
+    const correctionBtn = document.getElementById("correction-btn");
+
+    // State Variables
+    let readingId = "";
+    let reading = null;
+    let consumer = null;
     let timerInterval = null;
-    let editWindowExpiry = null;
-    const TOTAL_WINDOW_MS = 5 * 60 * 1000;
 
+    // Check Auth State
     onAuthStateChanged(auth, async (user) => {
-      if (!user) { window.location.href = 'index.html'; return; }
-      const profile = JSON.parse(sessionStorage.getItem('meter_reader_profile') || '{}');
-      document.getElementById('headerUser').textContent = profile.name || user.email;
-
-      if (!readingId) {
-        showError('No reading ID specified.');
-        document.getElementById('loadingSpinner').classList.add('hidden');
-        document.getElementById('pageContent').classList.remove('hidden');
+      if (!user) {
+        window.location.href = "index.html";
         return;
       }
-      await loadPage();
+      
+      const profileStr = sessionStorage.getItem("meter_reader_profile");
+      if (profileStr) {
+        const profile = JSON.parse(profileStr);
+        document.getElementById("header-user-name").textContent = profile.name;
+      }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      readingId = urlParams.get("reading_id");
+
+      if (!readingId) {
+        alert("Reading ID is missing.");
+        window.location.href = "search.html";
+        return;
+      }
+
+      loadReadingDetails();
     });
 
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-      await signOut(auth);
-      sessionStorage.clear();
-      window.location.href = 'index.html';
-    });
-
-    document.getElementById('searchAnotherBtn').addEventListener('click', () => { window.location.href = 'search.html'; });
-    document.getElementById('myReadingsBtn').addEventListener('click', () => { window.location.href = 'my-readings.html'; });
-
-    async function loadPage() {
+    // Logout Functionality
+    logoutBtn.addEventListener("click", async () => {
+      loadingOverlay.style.display = "flex";
       try {
-        const rDoc = await getDoc(doc(db, 'readings', readingId));
-        if (!rDoc.exists()) {
-          showError('Reading record not found.');
+        await signOut(auth);
+        sessionStorage.clear();
+        window.location.href = "index.html";
+      } catch (error) {
+        console.error("Logout error:", error);
+      }
+      loadingOverlay.style.display = "none";
+    });
+
+    async function loadReadingDetails() {
+      try {
+        // 1. Fetch reading
+        const readingDoc = await getDoc(doc(db, "readings", readingId));
+        if (!readingDoc.exists()) {
+          alert("Reading document not found.");
+          window.location.href = "search.html";
           return;
         }
-        const reading = { id: rDoc.id, ...rDoc.data() };
-        renderPage(reading);
-      } catch (err) {
-        showError('Failed to load confirmation. Please check your connection.');
-      } finally {
-        document.getElementById('loadingSpinner').classList.add('hidden');
-        document.getElementById('pageContent').classList.remove('hidden');
-      }
-    }
+        reading = readingDoc.data();
 
-    function renderPage(reading) {
-      const bill = reading.full_bill_breakdown || {};
-      const total = bill.total_amount != null ? bill.total_amount : 0;
-      const consumption = reading.consumption != null ? reading.consumption : 0;
+        // 2. Fetch consumer
+        const consumerDoc = await getDoc(doc(db, "consumers", reading.cin_no));
+        if (!consumerDoc.exists()) {
+          alert("Associated consumer record not found.");
+          window.location.href = "search.html";
+          return;
+        }
+        consumer = consumerDoc.data();
 
-      document.getElementById('confName').textContent = reading.reader_name || '—';
-      document.getElementById('confAmount').textContent = formatCurrency(total);
-      document.getElementById('confDetail').textContent =
-        `CIN: ${reading.cin_no}  •  Reading: ${Number(reading.current_reading).toFixed(2)} KL  •  Cycle: ${reading.cycle_id || 'N/A'}`;
+        // Populate summary
+        sumName.textContent = consumer.name || "";
+        sumCin.textContent = reading.cin_no || "";
+        sumDate.textContent = reading.reading_date || "";
+        sumConsumption.textContent = formatKL(reading.consumption || 0);
+        sumPrev.textContent = formatKL(reading.previous_reading || 0);
+        sumCurr.textContent = formatKL(reading.current_reading || 0);
 
-      // Summary rows
-      const summaryRows = [
-        ['Consumer CIN', reading.cin_no],
-        ['Reading Date', reading.reading_date || '—'],
-        ['Previous Reading', `${Number(reading.previous_reading).toFixed(2)} KL`],
-        ['Current Reading', `${Number(reading.current_reading).toFixed(2)} KL`],
-        ['Consumption', `${Number(consumption).toFixed(2)} KL`],
-        ['Total Bill', formatCurrency(total)],
-      ];
-      document.getElementById('readingSummary').innerHTML = summaryRows.map(([l,v]) =>
-        `<div class="info-panel__row"><span class="info-panel__label">${l}</span><span class="info-panel__value">${v}</span></div>`
-      ).join('');
+        const breakdown = reading.full_bill_breakdown || {};
+        sumOutstanding.textContent = formatCurrency(breakdown.previous_outstanding || 0);
+        sumCredit.textContent = "-" + formatCurrency(breakdown.credit_applied || 0);
+        sumTotal.textContent = formatCurrency(breakdown.total_amount || 0);
 
-      // Bill breakdown
-      renderBillBreakdown(bill);
-
-      // Edit window timer
-      let expiryMs = null;
-      if (reading.edit_window_expiry) {
-        if (reading.edit_window_expiry.toDate) {
-          expiryMs = reading.edit_window_expiry.toDate().getTime();
+        // Populate complete breakdown details
+        // Clear old rows
+        slabRows.innerHTML = "";
+        
+        if (breakdown.slab_details && Array.isArray(breakdown.slab_details)) {
+          breakdown.slab_details.forEach(row => {
+            slabRows.innerHTML += `
+              <tr>
+                <td>${row.slab} (${formatKL(row.kl)} @ ₹${row.rate.toFixed(2)})</td>
+                <td class="amount">${formatCurrency(row.amount)}</td>
+              </tr>
+            `;
+          });
         } else {
-          expiryMs = new Date(reading.edit_window_expiry).getTime();
+          slabRows.innerHTML = `
+            <tr>
+              <td>Standard Water Charges</td>
+              <td class="amount">${formatCurrency(breakdown.water_charge || 0)}</td>
+            </tr>
+          `;
         }
+
+        breakdownFixed.textContent = formatCurrency(breakdown.fixed_charge || 0);
+        breakdownMeterSvc.textContent = formatCurrency(breakdown.meter_service_charge || 0);
+        breakdownSewerageTax.textContent = formatCurrency(breakdown.sewerage_tax || 0);
+        breakdownSTPCharge.textContent = formatCurrency(breakdown.stp_charge || 0);
+        breakdownIdsPct.textContent = breakdown.ids_rate_pct || 0;
+        breakdownIdsCharge.textContent = formatCurrency(breakdown.ids_charge || 0);
+        breakdownSubtotal.textContent = formatCurrency(breakdown.subtotal_before_lps || 0);
+        breakdownOutstanding.textContent = formatCurrency(breakdown.previous_outstanding || 0);
+        breakdownCredit.textContent = "-" + formatCurrency(breakdown.credit_applied || 0);
+        breakdownTotal.textContent = formatCurrency(breakdown.total_amount || 0);
+
+        // Show UI elements
+        loadingOverlay.style.display = "none";
+        summaryCard.style.display = "block";
+        timerCard.style.display = "block";
+
+        // Setup the countdown timer
+        setupCountdown();
+
+      } catch (error) {
+        console.error("Error loading confirmation details:", error);
+        alert("An error occurred while loading success invoice screen.");
+        window.location.href = "search.html";
       }
+    }
 
-      editWindowExpiry = expiryMs;
-      const remaining = expiryMs ? expiryMs - Date.now() : 0;
+    function setupCountdown() {
+      if (!reading || !reading.edit_window_expiry) return;
 
-      if (remaining > 0) {
-        startTimer(remaining, expiryMs);
-        document.getElementById('editBtn').addEventListener('click', () => {
-          window.location.href = `reading.html?cin=${encodeURIComponent(reading.cin_no)}&edit=${encodeURIComponent(readingId)}`;
-        });
-      } else {
-        // Window expired
-        document.getElementById('timerSection').classList.add('hidden');
-        document.getElementById('correctionSection').classList.remove('hidden');
-      }
+      const expiryDate = reading.edit_window_expiry.toDate();
+      const totalWindowMs = 5 * 60 * 1000; // 5 minutes standard
 
-      document.getElementById('correctionBtn').addEventListener('click', () => {
-        window.location.href = `correction.html?reading_id=${encodeURIComponent(readingId)}`;
+      // Setup button click handlers
+      editBtn.addEventListener("click", () => {
+        window.location.href = `reading.html?cin=${reading.cin_no}&edit=${readingId}`;
       });
-    }
 
-    function renderBillBreakdown(bill) {
-      const tbody = document.getElementById('billBreakdownBody');
-      const rows = [];
+      correctionBtn.addEventListener("click", () => {
+        window.location.href = `correction.html?reading_id=${readingId}`;
+      });
 
-      if (bill.slab_details && bill.slab_details.length > 0) {
-        bill.slab_details.forEach(s => {
-          rows.push(`<tr><td>Water (${s.slab}): ${formatKL(s.kl)} × ₹${s.rate}</td><td>${formatCurrency(s.amount)}</td></tr>`);
-        });
-      } else if (bill.water_charge != null) {
-        rows.push(`<tr><td>Water Charge</td><td>${formatCurrency(bill.water_charge)}</td></tr>`);
-      }
-      if (bill.minimum_charge_applied) rows.push(`<tr><td>Minimum Charge Applied</td><td>${formatCurrency(bill.minimum_charge_applied)}</td></tr>`);
-      if (bill.fixed_charge) rows.push(`<tr><td>Fixed Charge</td><td>${formatCurrency(bill.fixed_charge)}</td></tr>`);
-      if (bill.meter_service_charge) rows.push(`<tr><td>Meter Service Charge</td><td>${formatCurrency(bill.meter_service_charge)}</td></tr>`);
-      if (bill.sewerage_charge) rows.push(`<tr><td>Sewerage Charge</td><td>${formatCurrency(bill.sewerage_charge)}</td></tr>`);
-      if (bill.ids_charge) rows.push(`<tr><td>IDS Surcharge</td><td>${formatCurrency(bill.ids_charge)}</td></tr>`);
-      if (bill.previous_outstanding) rows.push(`<tr><td>Previous Outstanding</td><td>${formatCurrency(bill.previous_outstanding)}</td></tr>`);
-      if (bill.credit_applied) rows.push(`<tr><td>Credit Applied</td><td>−${formatCurrency(bill.credit_applied)}</td></tr>`);
-      if (bill.lps_amount && bill.lps_amount > 0) rows.push(`<tr class="bill-preview__lps"><td>LPS (${bill.lps_type})</td><td>${formatCurrency(bill.lps_amount)}</td></tr>`);
+      function updateTimer() {
+        const now = new Date();
+        const remaining = expiryDate - now;
 
-      tbody.innerHTML = rows.join('');
-      document.getElementById('billBreakdownTotal').textContent = formatCurrency(bill.total_amount || 0);
-    }
-
-    function startTimer(remainingMs, expiryMs) {
-      const fill = document.getElementById('timerFill');
-
-      function update() {
-        const now = Date.now();
-        const rem = expiryMs - now;
-        if (rem <= 0) {
+        if (remaining > 0) {
+          const mins = Math.floor(remaining / 60000);
+          const secs = Math.floor((remaining % 60000) / 1000);
+          
+          const pct = Math.max(0, Math.min(100, (remaining / totalWindowMs) * 100));
+          timerBar.style.width = pct + "%";
+          timerLabel.textContent = `Edit window: ${mins}:${secs.toString().padStart(2, "0")} remaining`;
+          
+          editBtn.style.display = "block";
+          correctionBtn.style.display = "none";
+        } else {
           clearInterval(timerInterval);
-          fill.style.width = '0%';
-          fill.classList.add('timer-bar__fill--expired');
-          document.getElementById('timerDisplay').textContent = '0:00';
-          document.getElementById('timerSection').classList.add('hidden');
-          document.getElementById('correctionSection').classList.remove('hidden');
-          return;
-        }
-        const m = Math.floor(rem / 60000);
-        const s = Math.floor((rem % 60000) / 1000);
-        document.getElementById('timerDisplay').textContent = `${m}:${s.toString().padStart(2,'0')}`;
-        const pct = Math.max(0, Math.min(100, (rem / TOTAL_WINDOW_MS) * 100));
-        fill.style.width = `${pct}%`;
-        if (rem < 2 * 60 * 1000) {
-          fill.classList.add('timer-bar__fill--warning');
+          timerBar.style.width = "0%";
+          timerBar.style.backgroundColor = "var(--danger)";
+          timerLabel.textContent = "Edit window closed";
+          timerLabel.style.color = "#ffffff";
+          
+          editBtn.style.display = "none";
+          correctionBtn.style.display = "block";
         }
       }
-      update();
-      timerInterval = setInterval(update, 1000);
-    }
 
-    function showError(msg) {
-      const el = document.getElementById('errorMsg');
-      el.textContent = msg;
-      el.classList.remove('hidden');
+      updateTimer();
+      timerInterval = setInterval(updateTimer, 1000);
     }
   </script>
 </body>

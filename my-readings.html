@@ -3,361 +3,426 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Readings — RJB</title>
+  <title>Rajasthan Jal Board - My Readings Log</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <!-- Header -->
   <header class="header">
-    <div class="header__brand">
-      <img class="header__logo" src="rjb-logo.png" alt="RJB Logo" onerror="this.style.display='none'">
-      <span class="header__title">Rajasthan Jal Board</span>
-    </div>
-    <div class="header__right">
-      <span class="header__user" id="headerUser"></span>
-      <button class="header__logout" id="logoutBtn">Logout</button>
+    <div class="header-title">💧 RJB Mobile</div>
+    <div class="header-user">
+      <span id="header-user-name">Reader</span>
+      <button id="logout-btn" class="logout-btn">Logout</button>
     </div>
   </header>
 
-  <main>
-    <div class="container">
-      <!-- Filter Section -->
-      <div class="card section">
-        <p class="section-title">My Submitted Readings</p>
-        <div class="d-flex gap-1">
-          <div class="form-group flex-1">
-            <label for="dateFrom">From</label>
-            <input type="date" id="dateFrom">
-          </div>
-          <div class="form-group flex-1">
-            <label for="dateTo">To</label>
-            <input type="date" id="dateTo">
-          </div>
+  <!-- Content Container -->
+  <div class="container">
+    <div style="margin-top: 15px; margin-bottom: 20px;">
+      <h1 style="font-size: 1.5rem; color: var(--primary); font-weight: bold;">My Readings Log</h1>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">View and filter your recently submitted readings.</p>
+    </div>
+
+    <!-- Filter Card -->
+    <div class="card">
+      <h2>Filter Log</h2>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="filter-from" style="font-size: 0.75rem;">Date From</label>
+          <input type="date" id="filter-from" style="height: 38px; font-size: 0.9rem;">
         </div>
-        <button class="btn btn-primary btn-full" id="loadBtn">Load Readings</button>
-      </div>
-
-      <div id="loadingSpinner" class="loading-spinner hidden">
-        <div class="loading-spinner__ring"></div>
-        <span>Loading readings…</span>
-      </div>
-      <div id="errorMsg" class="alert alert-danger hidden"></div>
-
-      <!-- Readings Table -->
-      <div id="resultsSection" class="hidden">
-        <div class="card section">
-          <p class="section-title">Results</p>
-          <div id="resultCount" class="text-muted mb-1" style="font-size:0.9rem;"></div>
-          <div class="ledger-table-wrapper">
-            <table class="ledger-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>CIN</th>
-                  <th>Consumption</th>
-                  <th class="right">Bill</th>
-                  <th>Status</th>
-                  <th>Query</th>
-                </tr>
-              </thead>
-              <tbody id="readingsBody"></tbody>
-            </table>
-          </div>
-          <button class="btn btn-secondary btn-full mt-1 hidden" id="loadMoreBtn">Load More</button>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="filter-to" style="font-size: 0.75rem;">Date To</label>
+          <input type="date" id="filter-to" style="height: 38px; font-size: 0.9rem;">
         </div>
       </div>
-
-      <!-- Bill Breakdown Modal -->
-      <div id="breakdownModal" class="hidden">
-        <div class="card section" style="border: 2px solid var(--primary);">
-          <div class="d-flex" style="justify-content:space-between;align-items:center;">
-            <p class="section-title" style="margin:0;">Bill Breakdown</p>
-            <button class="btn btn-secondary" id="closeBreakdownBtn" style="padding:0.25rem 0.75rem;">✕ Close</button>
-          </div>
-          <div class="info-panel mt-1" id="breakdownConsumerInfo"></div>
-          <div class="bill-preview mt-1" id="breakdownBill">
-            <div class="bill-preview__header">Bill Details</div>
-            <table>
-              <tbody id="breakdownBillBody"></tbody>
-              <tfoot>
-                <tr class="bill-preview__total">
-                  <td>TOTAL</td>
-                  <td id="breakdownBillTotal"></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
+      <div style="display: flex; gap: 10px;">
+        <button id="apply-filter-btn" class="btn btn-primary" style="height: 40px; font-size: 0.9rem;">Apply Filters</button>
+        <button id="reset-filter-btn" class="btn btn-secondary" style="height: 40px; font-size: 0.9rem; flex: 0.5;">Reset</button>
       </div>
     </div>
-  </main>
+
+    <!-- Readings List Container -->
+    <div id="readings-container">
+      <!-- Reading cards populated here -->
+    </div>
+
+    <!-- Load More Button -->
+    <div style="margin-bottom: 20px; text-align: center;">
+      <button id="load-more-btn" class="btn btn-secondary" style="display: none; margin-top: 10px;">Load More Readings</button>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <nav class="nav-bar">
+    <a href="search.html" class="nav-item">
+      <span class="nav-icon">🔍</span>
+      <span>Search</span>
+    </a>
+    <a href="ledger.html" class="nav-item">
+      <span class="nav-icon">📖</span>
+      <span>Ledger</span>
+    </a>
+    <a href="my-readings.html" class="nav-item active">
+      <span class="nav-icon">📋</span>
+      <span>My Readings</span>
+    </a>
+  </nav>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-spinner-overlay" style="display: none;">
+    <div style="text-align: center;">
+      <div class="spinner"></div>
+      <p id="loading-text" style="margin-top: 12px; font-weight: bold; color: var(--primary);">Fetching logs...</p>
+    </div>
+  </div>
 
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import {
-      getFirestore, collection, query, where, getDocs, orderBy,
-      Timestamp, startAfter, limit as fsLimit
-    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-    import { firebaseConfig } from './firebase_config.js';
+    import { auth, db } from "./firebase_config.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { collection, getDocs, query, where, orderBy, limit, startAfter } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { formatCurrency, formatKL } from "./billing-engine.js";
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const loadingOverlay = document.getElementById("loading-overlay");
+    const loadingText = document.getElementById("loading-text");
+    const logoutBtn = document.getElementById("logout-btn");
+    
+    // Filters & container
+    const filterFrom = document.getElementById("filter-from");
+    const filterTo = document.getElementById("filter-to");
+    const applyFilterBtn = document.getElementById("apply-filter-btn");
+    const resetFilterBtn = document.getElementById("reset-filter-btn");
+    const readingsContainer = document.getElementById("readings-container");
+    const loadMoreBtn = document.getElementById("load-more-btn");
 
-    const PAGE_SIZE = 50;
-    let currentUser = null;
-    let readerProfile = null;
-    let lastDoc = null;
-    let hasMore = false;
-    let currentReadings = [];
-    let queryConstraints = null;
+    // State Variables
+    let currentReader = null;
+    let rawReadings = [];
+    let queryMap = {}; // Maps reading_id -> status
+    let lastVisibleDoc = null;
+    let hasMore = true;
 
-    onAuthStateChanged(auth, (user) => {
-      if (!user) { window.location.href = 'index.html'; return; }
-      currentUser = user;
-      readerProfile = JSON.parse(sessionStorage.getItem('meter_reader_profile') || '{}');
-      document.getElementById('headerUser').textContent = readerProfile.name || user.email;
-
-      // Default date range: last 30 days
-      const today = new Date();
-      const thirtyDaysAgo = new Date(today);
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      document.getElementById('dateTo').value = today.toISOString().split('T')[0];
-      document.getElementById('dateFrom').value = thirtyDaysAgo.toISOString().split('T')[0];
-    });
-
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-      await signOut(auth);
-      sessionStorage.clear();
-      window.location.href = 'index.html';
-    });
-
-    document.getElementById('loadBtn').addEventListener('click', () => loadReadings(true));
-    document.getElementById('loadMoreBtn').addEventListener('click', () => loadReadings(false));
-    document.getElementById('closeBreakdownBtn').addEventListener('click', () => {
-      document.getElementById('breakdownModal').classList.add('hidden');
-    });
-
-    function formatCurrency(n) {
-      if (n == null) return '—';
-      return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-    function formatTs(ts) {
-      if (!ts) return '—';
-      let d;
-      if (ts.toDate) d = ts.toDate();
-      else d = new Date(ts);
-      return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
-    }
-
-    async function loadReadings(fresh) {
-      hideError();
-      const fromVal = document.getElementById('dateFrom').value;
-      const toVal = document.getElementById('dateTo').value;
-      if (!fromVal || !toVal) {
-        showError('Please select both date range values.');
+    // Check Auth State
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "index.html";
         return;
       }
-
-      const fromDate = new Date(fromVal);
-      const toDate = new Date(toVal);
-      toDate.setHours(23, 59, 59, 999);
-
-      if (fresh) {
-        lastDoc = null;
-        currentReadings = [];
-        document.getElementById('readingsBody').innerHTML = '';
-        document.getElementById('loadMoreBtn').classList.add('hidden');
-        document.getElementById('resultsSection').classList.add('hidden');
+      
+      const profileStr = sessionStorage.getItem("meter_reader_profile");
+      if (profileStr) {
+        currentReader = JSON.parse(profileStr);
+        document.getElementById("header-user-name").textContent = currentReader.name;
       }
 
-      document.getElementById('loadingSpinner').classList.remove('hidden');
+      loadInitialLogs();
+    });
+
+    // Logout Functionality
+    logoutBtn.addEventListener("click", async () => {
+      loadingOverlay.style.display = "flex";
+      try {
+        await signOut(auth);
+        sessionStorage.clear();
+        window.location.href = "index.html";
+      } catch (error) {
+        console.error("Logout error:", error);
+      }
+      loadingOverlay.style.display = "none";
+    });
+
+    async function loadInitialLogs() {
+      if (!currentReader) return;
+      loadingText.textContent = "Loading correction queries and readings...";
+      loadingOverlay.style.display = "flex";
 
       try {
-        const fromTs = Timestamp.fromDate(fromDate);
-        const toTs = Timestamp.fromDate(toDate);
-
-        let q;
-        if (lastDoc) {
-          q = query(
-            collection(db, 'readings'),
-            where('reader_uid', '==', currentUser.uid),
-            where('submitted_at', '>=', fromTs),
-            where('submitted_at', '<=', toTs),
-            orderBy('submitted_at', 'desc'),
-            startAfter(lastDoc),
-            fsLimit(PAGE_SIZE)
-          );
-        } else {
-          q = query(
-            collection(db, 'readings'),
-            where('reader_uid', '==', currentUser.uid),
-            where('submitted_at', '>=', fromTs),
-            where('submitted_at', '<=', toTs),
-            orderBy('submitted_at', 'desc'),
-            fsLimit(PAGE_SIZE)
-          );
-        }
-
-        const snap = await getDocs(q);
-        const docs = snap.docs;
-        hasMore = docs.length === PAGE_SIZE;
-        if (docs.length > 0) lastDoc = docs[docs.length - 1];
-
-        const newReadings = docs.map(d => ({ id: d.id, ...d.data() }));
-        currentReadings = fresh ? newReadings : [...currentReadings, ...newReadings];
-
-        renderReadings(newReadings, fresh);
-        document.getElementById('resultsSection').classList.remove('hidden');
-        document.getElementById('resultCount').textContent = `Showing ${currentReadings.length} reading(s)`;
-
-        if (hasMore) {
-          document.getElementById('loadMoreBtn').classList.remove('hidden');
-        } else {
-          document.getElementById('loadMoreBtn').classList.add('hidden');
-        }
-      } catch (err) {
-        showError('Failed to load readings. Please check your connection and try again.');
-      } finally {
-        document.getElementById('loadingSpinner').classList.add('hidden');
-      }
-    }
-
-    function getQueryStatusBadge(reading) {
-      if (!reading._queryStatus) return '<span class="text-muted">—</span>';
-      const map = {
-        pending: '<span class="status-badge status-badge--meter-faulty">Pending</span>',
-        approved: '<span class="status-badge status-badge--active">Approved</span>',
-        rejected: '<span class="status-badge status-badge--disconnected">Rejected</span>'
-      };
-      return map[reading._queryStatus] || '—';
-    }
-
-    async function fetchQueryStatuses(readings) {
-      // Batch-check correction queries for these reading IDs
-      const ids = readings.map(r => r.id);
-      if (ids.length === 0) return;
-      // Firestore 'in' query is limited to 30 items
-      const chunks = [];
-      for (let i = 0; i < ids.length; i += 30) chunks.push(ids.slice(i, i+30));
-      const queryMap = {};
-      for (const chunk of chunks) {
-        const snap = await getDocs(query(
-          collection(db, 'correction_queries'),
-          where('reading_id', 'in', chunk)
-        ));
-        snap.docs.forEach(d => {
-          const data = d.data();
-          queryMap[data.reading_id] = data.status;
-        });
-      }
-      // Update table cells
-      readings.forEach(r => {
-        const cell = document.getElementById(`qstatus-${r.id}`);
-        if (cell) {
-          const status = queryMap[r.id];
-          if (status) {
-            const map = {
-              pending: '<span class="status-badge status-badge--meter-faulty">Pending</span>',
-              approved: '<span class="status-badge status-badge--active">Approved</span>',
-              rejected: '<span class="status-badge status-badge--disconnected">Rejected</span>'
-            };
-            cell.innerHTML = map[status] || '—';
+        // 1. Fetch correction queries for this reader in a single batch to map statuses
+        const queriesRef = collection(db, "correction_queries");
+        const cqQuery = query(queriesRef, where("reader_uid", "==", currentReader.uid));
+        const cqSnapshot = await getDocs(cqQuery);
+        
+        queryMap = {};
+        cqSnapshot.forEach(doc => {
+          const qData = doc.data();
+          if (qData.reading_id) {
+            queryMap[qData.reading_id] = qData.status;
           }
-        }
-      });
+        });
+
+        // 2. Load readings
+        rawReadings = [];
+        lastVisibleDoc = null;
+        hasMore = true;
+        await fetchReadingsBatch();
+
+      } catch (error) {
+        console.error("Error loading logs:", error);
+        readingsContainer.innerHTML = `<div class="alert alert-danger">Failed to retrieve logs. Please try again.</div>`;
+        loadingOverlay.style.display = "none";
+      }
     }
 
-    function renderReadings(readings, fresh) {
-      const tbody = document.getElementById('readingsBody');
-      if (fresh) tbody.innerHTML = '';
+    async function fetchReadingsBatch() {
+      if (!currentReader || !hasMore) return;
+      
+      loadingOverlay.style.display = "flex";
+      try {
+        const readingsRef = collection(db, "readings");
+        let q = null;
+        
+        // Single field index with order-by
+        if (lastVisibleDoc) {
+          q = query(
+            readingsRef, 
+            where("reader_uid", "==", currentReader.uid),
+            orderBy("submitted_at", "desc"),
+            startAfter(lastVisibleDoc),
+            limit(25)
+          );
+        } else {
+          q = query(
+            readingsRef, 
+            where("reader_uid", "==", currentReader.uid),
+            orderBy("submitted_at", "desc"),
+            limit(25)
+          );
+        }
 
-      if (readings.length === 0 && fresh) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-muted text-center">No readings found for this date range.</td></tr>';
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+          hasMore = false;
+          loadMoreBtn.style.display = "none";
+          if (rawReadings.length === 0) {
+            readingsContainer.innerHTML = `<div style="text-align:center; padding: 30px; color: var(--text-muted);">No readings submitted yet.</div>`;
+          }
+        } else {
+          lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+          if (snapshot.docs.length < 25) {
+            hasMore = false;
+            loadMoreBtn.style.display = "none";
+          } else {
+            loadMoreBtn.style.display = "block";
+          }
+
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            data.id = doc.id;
+            rawReadings.push(data);
+          });
+
+          // Render
+          renderLogs();
+        }
+      } catch (error) {
+        console.error("Firestore readings query failed, attempting local sort fallback...", error);
+        // Fallback: fetch without order-by (extremely robust against missing index during development)
+        const readingsRef = collection(db, "readings");
+        const fallbackQ = query(readingsRef, where("reader_uid", "==", currentReader.uid));
+        const fallbackSnapshot = await getDocs(fallbackQ);
+        
+        rawReadings = [];
+        fallbackSnapshot.forEach(doc => {
+          const data = doc.data();
+          data.id = doc.id;
+          rawReadings.push(data);
+        });
+
+        // Sort in memory by submitted_at desc
+        rawReadings.sort((a, b) => {
+          const tA = a.submitted_at ? a.submitted_at.toDate() : new Date(0);
+          const tB = b.submitted_at ? b.submitted_at.toDate() : new Date(0);
+          return tB - tA;
+        });
+
+        hasMore = false;
+        loadMoreBtn.style.display = "none";
+        renderLogs();
+      }
+      loadingOverlay.style.display = "none";
+    }
+
+    loadMoreBtn.addEventListener("click", fetchReadingsBatch);
+
+    // Apply and Reset filter events
+    applyFilterBtn.addEventListener("click", () => {
+      renderLogs();
+    });
+
+    resetFilterBtn.addEventListener("click", () => {
+      filterFrom.value = "";
+      filterTo.value = "";
+      renderLogs();
+    });
+
+    function renderLogs() {
+      readingsContainer.innerHTML = "";
+
+      const fromVal = filterFrom.value;
+      const toVal = filterTo.value;
+
+      let fromD = fromVal ? new Date(fromVal) : null;
+      let toD = toVal ? new Date(toVal) : null;
+      
+      if (toD) {
+        toD.setHours(23, 59, 59, 999); // End of day limit
+      }
+
+      // Filter local list
+      const filtered = rawReadings.filter(r => {
+        if (!r.submitted_at) return false;
+        const d = r.submitted_at.toDate();
+
+        if (fromD && d < fromD) return false;
+        if (toD && d > toD) return false;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        readingsContainer.innerHTML = `<div style="text-align:center; padding: 30px; color: var(--text-muted);">No entries found matching filters.</div>`;
         return;
       }
 
-      readings.forEach(r => {
-        const date = r.reading_date || formatTs(r.submitted_at);
-        const time = r.reading_time || '—';
-        const consumption = r.consumption != null ? `${Number(r.consumption).toFixed(2)} KL` : '—';
-        const bill = r.full_bill_breakdown;
-        const total = bill ? formatCurrency(bill.total_amount) : '—';
+      filtered.forEach(r => {
+        const queryStatus = queryMap[r.id] || null;
+        let badgeHTML = "";
 
-        let statusBadge = '—';
-        if (r.status === 'finalized') statusBadge = '<span class="status-badge status-badge--active">Finalized</span>';
-        else if (r.status === 'skipped') statusBadge = '<span class="status-badge status-badge--meter-faulty">Cannot Read</span>';
-
-        const tr = document.createElement('tr');
-        tr.style.cursor = 'pointer';
-        tr.innerHTML = `
-          <td>${date}</td>
-          <td>${time}</td>
-          <td class="font-mono">${r.cin_no}</td>
-          <td>${consumption}</td>
-          <td class="right">${total}</td>
-          <td>${statusBadge}</td>
-          <td id="qstatus-${r.id}">—</td>
-        `;
-        tr.addEventListener('click', () => showBreakdown(r));
-        tbody.appendChild(tr);
-      });
-
-      // Async load query statuses (non-blocking)
-      fetchQueryStatuses(readings).catch(() => {});
-    }
-
-    function showBreakdown(reading) {
-      const bill = reading.full_bill_breakdown;
-      const tbody = document.getElementById('breakdownBillBody');
-      tbody.innerHTML = '';
-
-      // Consumer info
-      document.getElementById('breakdownConsumerInfo').innerHTML = `
-        <div class="info-panel__row"><span class="info-panel__label">CIN No.</span><span class="info-panel__value">${reading.cin_no}</span></div>
-        <div class="info-panel__row"><span class="info-panel__label">Date</span><span class="info-panel__value">${reading.reading_date || formatTs(reading.submitted_at)}</span></div>
-        <div class="info-panel__row"><span class="info-panel__label">Prev. Reading</span><span class="info-panel__value">${reading.previous_reading != null ? Number(reading.previous_reading).toFixed(2) + ' KL' : '—'}</span></div>
-        <div class="info-panel__row"><span class="info-panel__label">Current Reading</span><span class="info-panel__value">${reading.current_reading != null ? Number(reading.current_reading).toFixed(2) + ' KL' : '—'}</span></div>
-        <div class="info-panel__row"><span class="info-panel__label">Consumption</span><span class="info-panel__value">${reading.consumption != null ? Number(reading.consumption).toFixed(2) + ' KL' : '—'}</span></div>
-      `;
-
-      if (!bill) {
-        tbody.innerHTML = '<tr><td colspan="2" class="text-muted text-center">No bill calculated (Cannot Read or skipped).</td></tr>';
-        document.getElementById('breakdownBillTotal').textContent = '—';
-      } else {
-        const rows = [];
-        if (bill.slab_details && bill.slab_details.length > 0) {
-          bill.slab_details.forEach(s => {
-            rows.push(`<tr><td>Water (${s.slab}): ${Number(s.kl).toFixed(2)} KL × ₹${s.rate}</td><td>${formatCurrency(s.amount)}</td></tr>`);
-          });
-        } else if (bill.water_charge != null) {
-          rows.push(`<tr><td>Water Charge</td><td>${formatCurrency(bill.water_charge)}</td></tr>`);
+        if (queryStatus) {
+          if (queryStatus === "pending") {
+            badgeHTML = `<span class="status-badge meter faulty" style="margin-left:5px;">Pending Query</span>`;
+          } else if (queryStatus === "approved") {
+            badgeHTML = `<span class="status-badge active" style="margin-left:5px;">Query Approved</span>`;
+          } else if (queryStatus === "rejected") {
+            badgeHTML = `<span class="status-badge inactive" style="margin-left:5px;">Query Rejected</span>`;
+          }
         }
-        if (bill.minimum_charge_applied) rows.push(`<tr><td>Minimum Charge Applied</td><td>${formatCurrency(bill.minimum_charge_applied)}</td></tr>`);
-        if (bill.fixed_charge) rows.push(`<tr><td>Fixed Charge</td><td>${formatCurrency(bill.fixed_charge)}</td></tr>`);
-        if (bill.meter_service_charge) rows.push(`<tr><td>Meter Service Charge</td><td>${formatCurrency(bill.meter_service_charge)}</td></tr>`);
-        if (bill.sewerage_charge) rows.push(`<tr><td>Sewerage Charge</td><td>${formatCurrency(bill.sewerage_charge)}</td></tr>`);
-        if (bill.ids_charge) rows.push(`<tr><td>IDS Surcharge</td><td>${formatCurrency(bill.ids_charge)}</td></tr>`);
-        if (bill.previous_outstanding) rows.push(`<tr><td>Previous Outstanding</td><td>${formatCurrency(bill.previous_outstanding)}</td></tr>`);
-        if (bill.credit_applied) rows.push(`<tr><td>Credit Applied</td><td>−${formatCurrency(bill.credit_applied)}</td></tr>`);
-        if (bill.lps_amount && bill.lps_amount > 0) rows.push(`<tr class="bill-preview__lps"><td>LPS (${bill.lps_type})</td><td>${formatCurrency(bill.lps_amount)}</td></tr>`);
-        rows.push(`<tr class="bill-preview__subtotal"><td>Subtotal (before rounding)</td><td>${formatCurrency(bill.total_before_rounding)}</td></tr>`);
-        tbody.innerHTML = rows.join('');
-        document.getElementById('breakdownBillTotal').textContent = formatCurrency(bill.total_amount);
-      }
 
-      document.getElementById('breakdownModal').classList.remove('hidden');
-      document.getElementById('breakdownModal').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+        const card = document.createElement("div");
+        card.className = "card";
+        
+        let headerTitle = "Meter Reading";
+        let cardColor = "var(--primary)";
+        if (r.status === "skipped") {
+          headerTitle = `Skipped (Cannot Read)`;
+          cardColor = "var(--accent)";
+        }
 
-    function showError(msg) {
-      const el = document.getElementById('errorMsg');
-      el.textContent = msg;
-      el.classList.remove('hidden');
-    }
-    function hideError() {
-      document.getElementById('errorMsg').classList.add('hidden');
+        const dateStr = r.reading_date || (r.submitted_at ? r.submitted_at.toDate().toLocaleDateString("en-IN") : "—");
+        const timeStr = r.reading_time || (r.submitted_at ? r.submitted_at.toDate().toLocaleTimeString("en-IN") : "—");
+        
+        const consumptionStr = r.status === "skipped" ? "—" : formatKL(r.consumption || 0);
+        const billAmtStr = r.status === "skipped" ? "—" : formatCurrency(r.full_bill_breakdown ? r.full_bill_breakdown.total_amount : 0);
+
+        let detailsHTML = "";
+        if (r.status !== "skipped" && r.full_bill_breakdown) {
+          const b = r.full_bill_breakdown;
+          
+          let slabRows = "";
+          if (b.slab_details) {
+            b.slab_details.forEach(s => {
+              slabRows += `
+                <tr>
+                  <td>${s.slab} (${formatKL(s.kl)} @ ₹${s.rate})</td>
+                  <td class="amount">${formatCurrency(s.amount)}</td>
+                </tr>
+              `;
+            });
+          }
+
+          detailsHTML = `
+            <details style="margin-top:12px;">
+              <summary>Invoice Breakdown Details</summary>
+              <div style="padding-top: 8px;">
+                <table class="bill-table" style="font-size:0.75rem; width:100%;">
+                  <tbody>
+                    ${slabRows}
+                    <tr style="border-top:1px dashed var(--border);">
+                      <td>Fixed Monthly Charge</td>
+                      <td class="amount">${formatCurrency(b.fixed_charge || 0)}</td>
+                    </tr>
+                    <tr>
+                      <td>Meter Service Charge</td>
+                      <td class="amount">${formatCurrency(b.meter_service_charge || 0)}</td>
+                    </tr>
+                    <tr>
+                      <td>IDS Surcharge (${b.ids_rate_pct || 0}%)</td>
+                      <td class="amount">${formatCurrency(b.ids_charge || 0)}</td>
+                    </tr>
+                    <tr style="font-weight:bold;">
+                      <td>Total Billed</td>
+                      <td class="amount">${formatCurrency(b.subtotal_before_lps || 0)}</td>
+                    </tr>
+                    <tr style="color:var(--danger);">
+                      <td>Previous Outstanding</td>
+                      <td class="amount">${formatCurrency(b.previous_outstanding || 0)}</td>
+                    </tr>
+                    <tr style="color:var(--success);">
+                      <td>Credit Applied</td>
+                      <td class="amount">-${formatCurrency(b.credit_applied || 0)}</td>
+                    </tr>
+                    <tr style="font-weight:bold; border-top:1.5px solid var(--text);">
+                      <td>Net Invoice Total</td>
+                      <td class="amount">${formatCurrency(b.total_amount || 0)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          `;
+        } else if (r.status === "skipped") {
+          detailsHTML = `
+            <div style="margin-top: 10px; font-size: 0.85rem; background-color:#fafafa; border:1px solid var(--border); padding:8px; border-radius:4px;">
+              <strong>Reason Stated:</strong> ${r.cannot_read_reason || "—"}<br>
+              <strong>Description:</strong> ${r.notes || "—"}
+            </div>
+          `;
+        }
+
+        // Highlight anomaly flag
+        let anomalyAlert = "";
+        if (r.anomaly_flagged) {
+          anomalyAlert = `<span class="status-badge meter faulty" style="margin-left: 5px;">⚠️ Anomaly Flagged</span>`;
+        }
+
+        card.innerHTML = `
+          <h2 style="font-size:1.1rem; color:${cardColor}; display:flex; justify-content:space-between; align-items:center;">
+            <span>CIN: ${r.cin_no}</span>
+            <span style="font-size:0.75rem; font-weight:normal; color:var(--text-muted);">${dateStr} | ${timeStr}</span>
+          </h2>
+          
+          <div class="info-panel" style="margin-top:10px;">
+            <div>
+              <span class="info-label">Current Reading</span>
+              <span class="info-value">${r.current_reading !== null ? formatKL(r.current_reading) : "Skipped"}</span>
+            </div>
+            <div>
+              <span class="info-label">Consumption</span>
+              <span class="info-value" style="font-weight:bold; color:var(--primary);">${consumptionStr}</span>
+            </div>
+            <div>
+              <span class="info-label">Previous Reading</span>
+              <span class="info-value">${formatKL(r.previous_reading || 0)}</span>
+            </div>
+            <div>
+              <span class="info-label">Invoice Total</span>
+              <span class="info-value" style="font-weight:bold; color:var(--primary);">${billAmtStr}</span>
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:flex-start; align-items:center; flex-wrap:wrap; gap:5px; margin-top:10px; border-top:1px dashed var(--border); padding-top:8px;">
+            <span class="info-label" style="margin-right:5px; margin-bottom:0;">Status Indicators:</span>
+            <span class="status-badge ${r.status === 'skipped' ? 'inactive' : 'active'}">${r.status.toUpperCase()}</span>
+            ${badgeHTML}
+            ${anomalyAlert}
+          </div>
+
+          ${detailsHTML}
+        `;
+
+        readingsContainer.appendChild(card);
+      });
     }
   </script>
 </body>

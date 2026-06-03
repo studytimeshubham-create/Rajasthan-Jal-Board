@@ -3,430 +3,636 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Enter Reading — RJB</title>
+  <title>Rajasthan Jal Board - Enter Reading</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <!-- Header -->
   <header class="header">
-    <div class="header__brand">
-      <img class="header__logo" src="rjb-logo.png" alt="RJB Logo" onerror="this.style.display='none'">
-      <span class="header__title">Rajasthan Jal Board</span>
-    </div>
-    <div class="header__right">
-      <span class="header__user" id="headerUser"></span>
-      <button class="header__logout" id="logoutBtn">Logout</button>
+    <div class="header-title">💧 RJB Mobile</div>
+    <div class="header-user">
+      <span id="header-user-name">Reader</span>
+      <button id="logout-btn" class="logout-btn">Logout</button>
     </div>
   </header>
 
-  <main>
-    <div class="container">
-      <div id="loadingSpinner" class="loading-spinner">
-        <div class="loading-spinner__ring"></div>
-        <span>Loading consumer…</span>
+  <!-- Content Container -->
+  <div class="container">
+    <div style="margin-top: 15px; margin-bottom: 20px;">
+      <h1 id="page-title" style="font-size: 1.5rem; color: var(--primary); font-weight: bold;">New Meter Reading</h1>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">Record the current water consumption for the consumer.</p>
+    </div>
+
+    <!-- Error container -->
+    <div id="critical-error-container"></div>
+
+    <div id="main-content" style="display: none;">
+      <!-- Consumer Info Card -->
+      <div class="card">
+        <h2>Consumer Details</h2>
+        <div id="status-alert-container"></div>
+        <div class="info-panel">
+          <div>
+            <span class="info-label">Name</span>
+            <span id="info-name" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">CIN No</span>
+            <span id="info-cin" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">Zone</span>
+            <span id="info-zone" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">Category</span>
+            <span id="info-category" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">Meter Size</span>
+            <span id="info-meter-size" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">Meter Serial</span>
+            <span id="info-meter-serial" class="info-value"></span>
+          </div>
+        </div>
       </div>
 
-      <div id="pageContent" class="hidden">
-        <div id="statusBanner" class="alert alert-warning hidden"></div>
-        <div id="errorMsg" class="alert alert-danger hidden"></div>
+      <!-- Entry Form Card -->
+      <div class="card">
+        <h2>Reading Entry</h2>
+        <div id="alert-container"></div>
 
-        <!-- Consumer Info -->
-        <div class="card section">
-          <p class="section-title">Consumer Information</p>
-          <div class="info-panel" id="consumerInfo"></div>
-        </div>
+        <form id="reading-form">
+          <div style="text-align: center; margin-bottom: 20px; background-color: #fcfcfc; border: 1.5px solid var(--border); padding: 12px; border-radius: var(--radius);">
+            <span class="info-label" style="font-size: 0.9rem;">Previous Reading</span>
+            <div id="last-reading-display" style="font-size: 2.2rem; font-weight: bold; color: var(--primary); margin-top: 4px;">— KL</div>
+          </div>
 
-        <!-- Previous Reading -->
-        <div class="card section">
-          <p class="section-title">Previous Reading</p>
-          <div style="font-size:1.6rem;font-weight:700;color:var(--primary);font-family:'Courier New',monospace;" id="prevReadingDisplay">— KL</div>
-        </div>
-
-        <!-- Reading Entry -->
-        <div class="card section">
-          <p class="section-title">New Reading Entry</p>
           <div class="form-group">
-            <label for="readingDate">Reading Date</label>
-            <input type="date" id="readingDate">
+            <label for="reading-date">Reading Date</label>
+            <input type="date" id="reading-date" required>
           </div>
+
           <div class="form-group">
-            <label for="currentReading">Current Reading (KL)</label>
-            <input type="number" class="reading-input" id="currentReading"
-              inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+            <label for="current-reading">Current Reading (KL)</label>
+            <input type="number" id="current-reading" class="reading-input" step="0.001" min="0" placeholder="0.00" inputmode="decimal" required autocomplete="off">
           </div>
+
           <div class="form-group">
-            <label for="readingNotes">Notes (optional)</label>
-            <textarea id="readingNotes" rows="2" placeholder="Any remarks…"></textarea>
+            <label for="notes">Notes (Optional)</label>
+            <textarea id="notes" placeholder="Any observation or remarks..."></textarea>
           </div>
-        </div>
 
-        <!-- Anomaly Flag -->
-        <div id="anomalyFlag" class="anomaly-flag hidden">
-          <div class="anomaly-flag__title">⚠ Unusual Reading Detected</div>
-          <span id="anomalyDetail">This reading is more than 3× the 6-month average. Please verify the meter.</span>
-          <div class="form-group mt-1">
-            <label style="font-weight:normal;display:flex;align-items:center;gap:0.5rem;">
-              <input type="checkbox" id="anomalyConfirm" style="width:auto;height:auto;margin:0;">
-              I have verified the meter and confirm this reading is correct
-            </label>
+          <!-- Anomaly Confirmation Alert -->
+          <div id="anomaly-container" style="display: none; margin-bottom: 16px;">
+            <div class="alert alert-warning" style="flex-direction: column; align-items: flex-start; gap: 10px;">
+              <span id="anomaly-message" style="font-weight: bold;"></span>
+              <label style="display: flex; align-items: center; gap: 8px; font-weight: bold; color: #8a6d3b; cursor: pointer;">
+                <input type="checkbox" id="anomaly-confirm" style="width: 20px; height: 20px;" required>
+                <span>I confirm this high reading is correct</span>
+              </label>
+            </div>
           </div>
-        </div>
 
-        <!-- Bill Preview -->
-        <div id="billPreview" class="bill-preview hidden">
-          <div class="bill-preview__header">Bill Preview</div>
-          <table>
-            <tbody id="billPreviewBody"></tbody>
-            <tfoot>
-              <tr class="bill-preview__total">
-                <td>TOTAL</td>
-                <td id="billPreviewTotal">₹0.00</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+          <!-- Live Bill Preview -->
+          <div id="bill-preview-section" class="bill-preview" style="display: none; margin-bottom: 20px;">
+            <h3 style="font-size: 1rem; color: var(--primary); font-weight: bold; margin-bottom: 8px;">Live Invoice Breakdown</h3>
+            <table class="bill-table">
+              <tbody>
+                <tr>
+                  <td>Consumption Billed</td>
+                  <td id="preview-consumption" class="amount" style="font-weight: bold;">0.00 KL</td>
+                </tr>
+                <tr>
+                  <td>Water Charges <span id="preview-slab-indicator" style="font-size: 0.75rem; color: var(--text-muted);"></span></td>
+                  <td id="preview-water-charge" class="amount">₹0.00</td>
+                </tr>
+                <tr>
+                  <td>Fixed Monthly Charge</td>
+                  <td id="preview-fixed-charge" class="amount">₹0.00</td>
+                </tr>
+                <tr>
+                  <td>Meter Service Charge</td>
+                  <td id="preview-meter-svc" class="amount">₹0.00</td>
+                </tr>
+                <tr>
+                  <td>IDS Surcharge (<span id="preview-ids-pct">0</span>%)</td>
+                  <td id="preview-ids-charge" class="amount">₹0.00</td>
+                </tr>
+                <tr>
+                  <td>Sewerage Tax</td>
+                  <td id="preview-sewerage-tax" class="amount">₹0.00</td>
+                </tr>
+                <tr>
+                  <td>STP Charge</td>
+                  <td id="preview-stp-charge" class="amount">₹0.00</td>
+                </tr>
+                <tr style="border-top: 1px dashed var(--border);">
+                  <td>Current Cycle Bill</td>
+                  <td id="preview-cycle-bill" class="amount" style="font-weight: bold;">₹0.00</td>
+                </tr>
+                <tr>
+                  <td>Previous Outstanding</td>
+                  <td id="preview-outstanding" class="amount" style="color: var(--danger);">₹0.00</td>
+                </tr>
+                <tr>
+                  <td>Credit Balance Applied</td>
+                  <td id="preview-credit-applied" class="amount" style="color: var(--success);">-₹0.00</td>
+                </tr>
+                <tr class="total-row">
+                  <td>TOTAL AMOUNT DUE</td>
+                  <td id="preview-total" class="amount" style="color: var(--primary);">₹0.00</td>
+                </tr>
+              </tbody>
+            </table>
+            <p id="flat-rate-notice" style="display: none; font-size: 0.8rem; color: var(--accent); font-weight: bold; text-align: center; margin-top: 5px;">
+              * Flat Rate Rural connection applied.
+            </p>
+          </div>
 
-        <div id="negativeError" class="alert alert-danger hidden">
-          Reading cannot be less than the previous reading. If the meter was replaced, use "Cannot Read" and inform the admin.
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="btn-group section">
-          <button class="btn btn-secondary flex-1" id="cannotReadBtn">Cannot Read</button>
-          <button class="btn btn-primary flex-1" id="submitBtn" disabled>Submit Reading</button>
-        </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button type="submit" id="submit-btn" class="btn btn-primary">Submit Reading</button>
+            <button type="button" id="cannot-read-btn" class="btn btn-secondary">Cannot Read / Skip</button>
+          </div>
+        </form>
       </div>
     </div>
-  </main>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-spinner-overlay" style="display: none;">
+    <div style="text-align: center;">
+      <div class="spinner"></div>
+      <p id="loading-text" style="margin-top: 12px; font-weight: bold; color: var(--primary);">Loading consumer...</p>
+    </div>
+  </div>
 
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import {
-      getFirestore, doc, getDoc, collection, query, where, getDocs,
-      addDoc, updateDoc, serverTimestamp, Timestamp, limit
-    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-    import { firebaseConfig } from './firebase_config.js';
-    import calculateBill, { formatCurrency, formatKL } from './billing-engine.js';
+    import { auth, db } from "./firebase_config.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { doc, getDoc, getDocs, collection, query, where, runTransaction, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import calculateBill, { formatCurrency, formatKL, parseDate } from "./billing-engine.js";
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const criticalErrorContainer = document.getElementById("critical-error-container");
+    const mainContent = document.getElementById("main-content");
+    const loadingOverlay = document.getElementById("loading-overlay");
+    const loadingText = document.getElementById("loading-text");
+    const logoutBtn = document.getElementById("logout-btn");
+    
+    // Form and fields
+    const readingForm = document.getElementById("reading-form");
+    const readingDate = document.getElementById("reading-date");
+    const currentReadingInput = document.getElementById("current-reading");
+    const notesInput = document.getElementById("notes");
+    const alertContainer = document.getElementById("alert-container");
+    const lastReadingDisplay = document.getElementById("last-reading-display");
+    const cannotReadBtn = document.getElementById("cannot-read-btn");
+    const submitBtn = document.getElementById("submit-btn");
 
-    const params = new URLSearchParams(window.location.search);
-    const cinNo = params.get('cin');
-    const editReadingId = params.get('edit');
+    // Anomaly Elements
+    const anomalyContainer = document.getElementById("anomaly-container");
+    const anomalyMessage = document.getElementById("anomaly-message");
+    const anomalyConfirm = document.getElementById("anomaly-confirm");
 
+    // Preview elements
+    const billPreviewSection = document.getElementById("bill-preview-section");
+    const previewConsumption = document.getElementById("preview-consumption");
+    const previewWaterCharge = document.getElementById("preview-water-charge");
+    const previewFixedCharge = document.getElementById("preview-fixed-charge");
+    const previewMeterSvc = document.getElementById("preview-meter-svc");
+    const previewIdsPct = document.getElementById("preview-ids-pct");
+    const previewIdsCharge = document.getElementById("preview-ids-charge");
+    const previewSewerageTax = document.getElementById("preview-sewerage-tax");
+    const previewSTPCharge = document.getElementById("preview-stp-charge");
+    const previewCycleBill = document.getElementById("preview-cycle-bill");
+    const previewOutstanding = document.getElementById("preview-outstanding");
+    const previewCreditApplied = document.getElementById("preview-credit-applied");
+    const previewTotal = document.getElementById("preview-total");
+    const flatRateNotice = document.getElementById("flat-rate-notice");
+
+    // State Variables
+    let cin = "";
+    let editReadingId = "";
+    let isEditMode = false;
     let consumer = null;
-    let readerProfile = null;
+    let rates = null;
     let activeCycle = null;
-    let charges = null;
-    let lastBillResult = null;
-    let isAnomaly = false;
+    let lastReadingVal = 0;
+    let currentReader = null;
+    let oldReadingData = null;
 
+    // Set default date to today
+    readingDate.value = new Date().toISOString().split("T")[0];
+
+    // Auth state check
     onAuthStateChanged(auth, async (user) => {
-      if (!user) { window.location.href = 'index.html'; return; }
-      readerProfile = JSON.parse(sessionStorage.getItem('meter_reader_profile') || '{}');
-      charges = JSON.parse(sessionStorage.getItem('charges_config') || 'null');
-      document.getElementById('headerUser').textContent = readerProfile.name || user.email;
-
-      if (!cinNo) {
-        showError('No consumer specified. Please go back and search again.');
-        document.getElementById('loadingSpinner').classList.add('hidden');
-        document.getElementById('pageContent').classList.remove('hidden');
+      if (!user) {
+        window.location.href = "index.html";
         return;
       }
-      if (!charges) {
-        showError('Billing configuration not found. Please log out and log in again.');
-        document.getElementById('loadingSpinner').classList.add('hidden');
-        document.getElementById('pageContent').classList.remove('hidden');
+      
+      const profileStr = sessionStorage.getItem("meter_reader_profile");
+      if (profileStr) {
+        currentReader = JSON.parse(profileStr);
+        document.getElementById("header-user-name").textContent = currentReader.name;
+      }
+
+      // Parse parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      cin = urlParams.get("cin");
+      editReadingId = urlParams.get("edit");
+      
+      if (editReadingId) {
+        isEditMode = true;
+        document.getElementById("page-title").textContent = "Edit Meter Reading";
+      }
+
+      if (!cin) {
+        showCriticalError("Consumer CIN is missing from URL.");
         return;
       }
 
-      await loadPage(user);
+      loadInitialData();
     });
 
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-      await signOut(auth);
-      sessionStorage.clear();
-      window.location.href = 'index.html';
-    });
-
-    async function loadPage(user) {
+    // Logout Function
+    logoutBtn.addEventListener("click", async () => {
+      loadingOverlay.style.display = "flex";
       try {
-        // Load consumer
-        const cDoc = await getDoc(doc(db, 'consumers', cinNo));
-        if (!cDoc.exists()) {
-          showError('Consumer not found. Please go back and search again.');
-          document.getElementById('loadingSpinner').classList.add('hidden');
-          document.getElementById('pageContent').classList.remove('hidden');
+        await signOut(auth);
+        sessionStorage.clear();
+        window.location.href = "index.html";
+      } catch (error) {
+        console.error("Logout error:", error);
+      }
+      loadingOverlay.style.display = "none";
+    });
+
+    function showCriticalError(msg) {
+      loadingOverlay.style.display = "none";
+      criticalErrorContainer.innerHTML = `
+        <div class="alert alert-danger" style="margin-top: 20px;">
+          <span>${msg}</span>
+        </div>
+        <button onclick="window.location.href='search.html'" class="btn btn-secondary" style="margin-top: 10px;">Back to Search</button>
+      `;
+      mainContent.style.display = "none";
+    }
+
+    function showAlert(msg, type = "danger") {
+      alertContainer.innerHTML = `
+        <div class="alert alert-${type}">
+          <span>${msg}</span>
+        </div>
+      `;
+    }
+
+    function clearAlert() {
+      alertContainer.innerHTML = "";
+    }
+
+    async function loadInitialData() {
+      loadingText.textContent = "Loading consumer details...";
+      loadingOverlay.style.display = "flex";
+
+      try {
+        // 1. Fetch Consumer Doc
+        const consumerDoc = await getDoc(doc(db, "consumers", cin));
+        if (!consumerDoc.exists()) {
+          showCriticalError(`Consumer not found for CIN: ${cin}`);
           return;
         }
-        consumer = { cin_no: cDoc.id, ...cDoc.data() };
+        consumer = consumerDoc.data();
+        consumer.cin_no = consumerDoc.id;
 
-        // Find active cycle for this zone
-        const cycleQuery = query(
-          collection(db, 'billing_cycles'),
-          where('status', '==', 'open'),
-          where('zones', 'array-contains', consumer.zone),
-          limit(1)
-        );
-        const cycleSnap = await getDocs(cycleQuery);
-        if (!cycleSnap.empty) {
-          activeCycle = { id: cycleSnap.docs[0].id, ...cycleSnap.docs[0].data() };
+        // 2. Enforce active zone verification
+        const activeZones = JSON.parse(sessionStorage.getItem("active_zones") || "[]");
+        if (!activeZones.includes(parseInt(consumer.zone))) {
+          showCriticalError(`No active billing cycle for Zone ${consumer.zone}. Reading cannot be submitted.`);
+          return;
         }
 
-        renderPage();
-
-        // If editing an existing reading
-        if (editReadingId) {
-          const rDoc = await getDoc(doc(db, 'readings', editReadingId));
-          if (rDoc.exists()) {
-            const rd = rDoc.data();
-            document.getElementById('currentReading').value = rd.current_reading != null ? rd.current_reading : '';
-            if (rd.reading_date) {
-              // reading_date stored as DD-MM-YYYY, convert for date input
-              const parts = rd.reading_date.split('-');
-              if (parts.length === 3) {
-                document.getElementById('readingDate').value = `${parts[2]}-${parts[1]}-${parts[0]}`;
-              }
-            }
-            document.getElementById('readingNotes').value = rd.notes || '';
-            onReadingInput();
+        // 3. Fetch rates from sessionStorage or Firestore
+        const cachedRates = sessionStorage.getItem("charges_config");
+        if (cachedRates) {
+          rates = JSON.parse(cachedRates);
+        } else {
+          const ratesDoc = await getDoc(doc(db, "charges_config", "current"));
+          if (ratesDoc.exists()) {
+            rates = ratesDoc.data();
+            sessionStorage.setItem("charges_config", JSON.stringify(rates));
+          } else {
+            showCriticalError("Failed to load billing tariff config.");
+            return;
           }
         }
-      } catch (err) {
-        showError('Failed to load page. Please check your connection and try again.');
-      } finally {
-        document.getElementById('loadingSpinner').classList.add('hidden');
-        document.getElementById('pageContent').classList.remove('hidden');
+
+        // 4. Fetch the active open cycle for this consumer's zone
+        const cyclesRef = collection(db, "billing_cycles");
+        const q = query(cyclesRef, where("status", "==", "open"));
+        const snapshot = await getDocs(q);
+        
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.zones && data.zones.includes(parseInt(consumer.zone))) {
+            activeCycle = data;
+            activeCycle.id = doc.id;
+          }
+        });
+
+        if (!activeCycle) {
+          showCriticalError(`No active billing cycle found for Zone ${consumer.zone} in Firestore.`);
+          return;
+        }
+
+        // 5. Setup View Fields
+        document.getElementById("info-name").textContent = consumer.name || "";
+        document.getElementById("info-cin").textContent = consumer.cin_no || "";
+        document.getElementById("info-zone").textContent = consumer.zone || "";
+        document.getElementById("info-category").textContent = consumer.category || "";
+        document.getElementById("info-meter-size").textContent = consumer.meter_size || "";
+        document.getElementById("info-meter-serial").textContent = consumer.meter_serial_no || "";
+
+        if (consumer.consumer_status !== "Active") {
+          document.getElementById("status-alert-container").innerHTML = `
+            <div class="alert alert-warning" style="margin-bottom: 12px; padding: 8px;">
+              <span>⚠️ Status: <strong>${consumer.consumer_status}</strong></span>
+            </div>
+          `;
+        }
+
+        // Determine last reading val
+        lastReadingVal = consumer.last_reading !== undefined ? consumer.last_reading : (consumer.initial_meter_reading || 0);
+
+        // 6. Handle Edit Mode
+        if (isEditMode) {
+          const oldReadingDoc = await getDoc(doc(db, "readings", editReadingId));
+          if (!oldReadingDoc.exists()) {
+            showCriticalError(`Existing reading to edit was not found: ${editReadingId}`);
+            return;
+          }
+          oldReadingData = oldReadingDoc.data();
+          
+          // Revert lastReadingVal to previous reading for exact calculation parity
+          lastReadingVal = oldReadingData.previous_reading !== undefined ? oldReadingData.previous_reading : lastReadingVal;
+          
+          // Pre-fill inputs
+          currentReadingInput.value = oldReadingData.current_reading;
+          notesInput.value = oldReadingData.notes || "";
+          
+          if (oldReadingData.reading_date) {
+            const parts = oldReadingData.reading_date.split("-");
+            readingDate.value = `${parts[2]}-${parts[1]}-${parts[0]}`;
+          }
+        }
+
+        lastReadingDisplay.textContent = formatKL(lastReadingVal);
+        cannotReadBtn.addEventListener("click", () => {
+          window.location.href = `cannot-read.html?cin=${cin}`;
+        });
+
+        // Trigger initial calculation in edit mode
+        if (isEditMode) {
+          calculateLivePreview();
+        }
+
+        loadingOverlay.style.display = "none";
+        mainContent.style.display = "block";
+
+      } catch (error) {
+        console.error("Error loading data:", error);
+        showCriticalError("An error occurred while loading the reading screen.");
       }
     }
 
-    function statusBadgeClass(status) {
-      const map = {
-        'Active':'status-badge--active','Inactive':'status-badge--inactive',
-        'Meter Faulty':'status-badge--meter-faulty','Disconnected':'status-badge--disconnected','Disputed':'status-badge--disputed'
-      };
-      return map[status] || 'status-badge--inactive';
-    }
+    // Input listener for live calculation
+    currentReadingInput.addEventListener("input", calculateLivePreview);
+    readingDate.addEventListener("change", calculateLivePreview);
 
-    function renderPage() {
-      // Status banner
-      if (consumer.consumer_status && consumer.consumer_status !== 'Active') {
-        const b = document.getElementById('statusBanner');
-        b.textContent = `⚠ Status: ${consumer.consumer_status} — Reading entry is still allowed.`;
-        b.classList.remove('hidden');
-      }
-
-      // Consumer info
-      const rows = [
-        ['CIN No.', consumer.cin_no],
-        ['Name', consumer.name],
-        ['Category', consumer.category],
-        ['Meter Size', consumer.meter_size],
-        ['Meter Serial', consumer.meter_serial_no],
-        ['Zone', consumer.zone],
-        ['Status', `<span class="status-badge ${statusBadgeClass(consumer.consumer_status)}">${consumer.consumer_status || '—'}</span>`],
-      ];
-      document.getElementById('consumerInfo').innerHTML = rows.map(([l,v]) =>
-        `<div class="info-panel__row"><span class="info-panel__label">${l}</span><span class="info-panel__value">${v||'—'}</span></div>`
-      ).join('');
-
-      // Previous reading
-      const prevKL = consumer.last_reading != null ? Number(consumer.last_reading).toFixed(2) : '—';
-      document.getElementById('prevReadingDisplay').textContent = `${prevKL} KL`;
-
-      // Default date to today
-      const today = new Date();
-      document.getElementById('readingDate').value = today.toISOString().split('T')[0];
-
-      // Event listeners
-      document.getElementById('currentReading').addEventListener('input', onReadingInput);
-      document.getElementById('anomalyConfirm').addEventListener('change', updateSubmitState);
-      document.getElementById('submitBtn').addEventListener('click', submitReading);
-      document.getElementById('cannotReadBtn').addEventListener('click', () => {
-        window.location.href = `cannot-read.html?cin=${encodeURIComponent(cinNo)}`;
-      });
-    }
-
-    function formatDateStr(dateInputVal) {
-      // Convert yyyy-mm-dd → DD-MM-YYYY
-      if (!dateInputVal) return '';
-      const [y,m,d] = dateInputVal.split('-');
-      return `${d}-${m}-${y}`;
-    }
-
-    function onReadingInput() {
-      const val = document.getElementById('currentReading').value;
-      const prev = consumer.last_reading != null ? Number(consumer.last_reading) : 0;
-      const current = val === '' ? null : Number(val);
-
-      document.getElementById('negativeError').classList.add('hidden');
-      document.getElementById('billPreview').classList.add('hidden');
-      document.getElementById('anomalyFlag').classList.add('hidden');
-      isAnomaly = false;
-      lastBillResult = null;
-      updateSubmitState();
-
-      if (current === null) return;
-      if (current < prev) {
-        document.getElementById('negativeError').classList.remove('hidden');
+    function calculateLivePreview() {
+      const curr = parseFloat(currentReadingInput.value);
+      
+      if (isNaN(curr) || currentReadingInput.value === "") {
+        billPreviewSection.style.display = "none";
+        clearAlert();
+        submitBtn.disabled = false;
         return;
       }
 
-      const consumption = current - prev;
+      const consumption = curr - lastReadingVal;
 
-      // Anomaly detection
-      if (consumer.avg_6month_kl && consumption > 3 * consumer.avg_6month_kl) {
-        isAnomaly = true;
-        document.getElementById('anomalyDetail').textContent =
-          `This reading shows ${consumption.toFixed(2)} KL vs 6-month average of ${Number(consumer.avg_6month_kl).toFixed(2)} KL. Please verify the meter.`;
-        document.getElementById('anomalyFlag').classList.remove('hidden');
+      if (consumption < 0) {
+        showAlert(`Current reading cannot be less than previous reading (${formatKL(lastReadingVal)}). If the meter was replaced, tap 'Cannot Read' and inform admin.`, "danger");
+        submitBtn.disabled = true;
+        billPreviewSection.style.display = "none";
+        anomalyContainer.style.display = "none";
+        return;
       }
 
-      // Bill calculation
-      try {
-        const outstanding = consumer.outstanding_balance || 0;
-        const credit = consumer.credit_balance || 0;
-        lastBillResult = calculateBill(consumption, consumer, charges, outstanding, credit, null, null);
-        renderBillPreview(lastBillResult);
-      } catch (e) {
-        // Billing error — don't block submission
-      }
+      clearAlert();
+      submitBtn.disabled = false;
 
-      updateSubmitState();
-    }
+      // LPS default calculation uses reading entry date as payDate (usually 0 LPS at entry)
+      const parts = readingDate.value.split("-");
+      const readD = `${parts[2]}-${parts[1]}-${parts[0]}`;
 
-    function renderBillPreview(bill) {
-      if (!bill) return;
-      const tbody = document.getElementById('billPreviewBody');
-      const rows = [];
+      // Recalculate bill with our js billing engine
+      // When entering a reading, we display the outstanding balance as part of previous_outstanding
+      const breakdown = calculateBill(
+        consumption,
+        consumer,
+        rates,
+        consumer.outstanding_balance || 0,
+        consumer.credit_balance || 0,
+        activeCycle.last_payment_date,
+        null, // No payment date yet, so no LPS is added to the finalized invoice subtotal
+        consumer.avg_6month_kl || null
+      );
 
-      if (bill.slab_details && bill.slab_details.length > 0) {
-        bill.slab_details.forEach(s => {
-          rows.push(`<tr><td>Water (${s.slab}): ${formatKL(s.kl)} × ₹${s.rate}</td><td>₹${s.amount.toFixed(2)}</td></tr>`);
-        });
-      } else if (bill.water_charge != null) {
-        rows.push(`<tr><td>Water Charge</td><td>${formatCurrency(bill.water_charge)}</td></tr>`);
-      }
+      // Render previews
+      previewConsumption.textContent = formatKL(consumption);
+      previewWaterCharge.textContent = formatCurrency(breakdown.water_charge);
+      previewFixedCharge.textContent = formatCurrency(breakdown.fixed_charge);
+      previewMeterSvc.textContent = formatCurrency(breakdown.meter_service_charge);
+      previewIdsPct.textContent = breakdown.ids_rate_pct;
+      previewIdsCharge.textContent = formatCurrency(breakdown.ids_charge);
+      previewSewerageTax.textContent = formatCurrency(breakdown.sewerage_tax);
+      previewSTPCharge.textContent = formatCurrency(breakdown.stp_charge);
+      
+      previewCycleBill.textContent = formatCurrency(breakdown.subtotal_before_lps);
+      previewOutstanding.textContent = formatCurrency(breakdown.previous_outstanding);
+      previewCreditApplied.textContent = "-" + formatCurrency(breakdown.credit_applied);
+      previewTotal.textContent = formatCurrency(breakdown.total_amount);
 
-      if (bill.minimum_charge_applied) {
-        rows.push(`<tr><td>Minimum Charge Applied</td><td>${formatCurrency(bill.minimum_charge_applied)}</td></tr>`);
-      }
-      if (bill.fixed_charge) {
-        rows.push(`<tr><td>Fixed Charge</td><td>${formatCurrency(bill.fixed_charge)}</td></tr>`);
-      }
-      if (bill.meter_service_charge) {
-        rows.push(`<tr><td>Meter Service Charge</td><td>${formatCurrency(bill.meter_service_charge)}</td></tr>`);
-      }
-      if (bill.sewerage_charge) {
-        rows.push(`<tr><td>Sewerage Charge</td><td>${formatCurrency(bill.sewerage_charge)}</td></tr>`);
-      }
-      if (bill.ids_charge) {
-        rows.push(`<tr><td>IDS (Infrastructure Surcharge)</td><td>${formatCurrency(bill.ids_charge)}</td></tr>`);
-      }
-      if (bill.previous_outstanding) {
-        rows.push(`<tr class="bill-preview__subtotal"><td>Previous Outstanding</td><td>${formatCurrency(bill.previous_outstanding)}</td></tr>`);
-      }
-      if (bill.credit_applied) {
-        rows.push(`<tr><td>Credit Applied</td><td>−${formatCurrency(bill.credit_applied)}</td></tr>`);
-      }
-      if (bill.lps_amount && bill.lps_amount > 0) {
-        rows.push(`<tr class="bill-preview__lps"><td>LPS (${bill.lps_type})</td><td>${formatCurrency(bill.lps_amount)}</td></tr>`);
-      }
-      rows.push(`<tr class="bill-preview__subtotal"><td>Subtotal</td><td>${formatCurrency(bill.total_before_rounding)}</td></tr>`);
+      flatRateNotice.style.display = breakdown.is_flat_rate_rural ? "block" : "none";
+      billPreviewSection.style.display = "block";
 
-      tbody.innerHTML = rows.join('');
-      document.getElementById('billPreviewTotal').textContent = formatCurrency(bill.total_amount);
-      document.getElementById('billPreview').classList.remove('hidden');
-    }
-
-    function updateSubmitState() {
-      const val = document.getElementById('currentReading').value;
-      const prev = consumer ? (consumer.last_reading != null ? Number(consumer.last_reading) : 0) : 0;
-      const current = val === '' ? null : Number(val);
-      const negErr = current !== null && current < prev;
-      const anomalyOk = !isAnomaly || document.getElementById('anomalyConfirm').checked;
-      const valid = current !== null && !negErr && anomalyOk;
-      document.getElementById('submitBtn').disabled = !valid;
-    }
-
-    async function submitReading() {
-      const btn = document.getElementById('submitBtn');
-      btn.disabled = true;
-      btn.textContent = 'Submitting…';
-      hideError();
-
-      try {
-        const currentVal = Number(document.getElementById('currentReading').value);
-        const prev = consumer.last_reading != null ? Number(consumer.last_reading) : 0;
-        const consumption = currentVal - prev;
-        const dateInputVal = document.getElementById('readingDate').value;
-        const readingDateStr = formatDateStr(dateInputVal);
-        const notes = document.getElementById('readingNotes').value.trim();
-
-        const outstanding = consumer.outstanding_balance || 0;
-        const credit = consumer.credit_balance || 0;
-        const billResult = calculateBill(consumption, consumer, charges, outstanding, credit, null, null);
-
-        const now = new Date();
-        const expiryTime = new Date(now.getTime() + 5 * 60 * 1000);
-
-        const readingData = {
-          cin_no: consumer.cin_no,
-          cycle_id: activeCycle ? activeCycle.id : null,
-          previous_reading: prev,
-          current_reading: currentVal,
-          consumption: consumption,
-          reading_date: readingDateStr,
-          reading_time: now.toTimeString().slice(0,5),
-          reader_uid: readerProfile.uid,
-          reader_name: readerProfile.name,
-          full_bill_breakdown: billResult,
-          status: 'finalized',
-          edited_by_admin: false,
-          cannot_read_reason: null,
-          notes: notes || null,
-          submitted_at: serverTimestamp(),
-          edit_window_expiry: Timestamp.fromDate(expiryTime)
-        };
-
-        let readingId;
-        if (editReadingId) {
-          // Overwrite existing reading
-          await updateDoc(doc(db, 'readings', editReadingId), {
-            ...readingData,
-            edited_by_admin: false
-          });
-          readingId = editReadingId;
-        } else {
-          const newDoc = await addDoc(collection(db, 'readings'), readingData);
-          readingId = newDoc.id;
+      // Anomaly Detection: consumption > 3 * 6-month average
+      const avg = consumer.avg_6month_kl;
+      if (avg !== undefined && avg > 0 && consumption > (3 * avg)) {
+        anomalyMessage.innerHTML = `⚠️ Unusually high consumption: <strong>${formatKL(consumption)}</strong> (6-Month Average: <strong>${formatKL(avg)}</strong>). Please confirm this reading is correct.`;
+        anomalyContainer.style.display = "block";
+        
+        if (!anomalyConfirm.checked) {
+          submitBtn.disabled = true;
         }
-
-        // Atomically update consumer last_reading and outstanding_balance
-        await updateDoc(doc(db, 'consumers', consumer.cin_no), {
-          last_reading: currentVal,
-          outstanding_balance: outstanding + billResult.total_amount,
-          updated_at: serverTimestamp()
-        });
-
-        window.location.href = `confirmation.html?reading_id=${encodeURIComponent(readingId)}`;
-      } catch (err) {
-        showError('Submission failed. Please check your connection and try again.');
-        btn.disabled = false;
-        btn.textContent = 'Submit Reading';
+      } else {
+        anomalyContainer.style.display = "none";
+        anomalyConfirm.required = false;
+        submitBtn.disabled = false;
       }
     }
 
-    function showError(msg) {
-      const el = document.getElementById('errorMsg');
-      el.textContent = msg;
-      el.classList.remove('hidden');
-    }
-    function hideError() {
-      document.getElementById('errorMsg').classList.add('hidden');
-    }
+    anomalyConfirm.addEventListener("change", () => {
+      if (anomalyConfirm.checked) {
+        submitBtn.disabled = false;
+      } else {
+        submitBtn.disabled = true;
+      }
+    });
+
+    // Form Submission
+    readingForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      clearAlert();
+
+      const curr = parseFloat(currentReadingInput.value);
+      const consumption = curr - lastReadingVal;
+
+      if (isNaN(curr) || consumption < 0) {
+        showAlert("Please enter a valid current reading.", "danger");
+        return;
+      }
+
+      // Check anomaly confirmation
+      const avg = consumer.avg_6month_kl;
+      const isAnomaly = avg !== undefined && avg > 0 && consumption > (3 * avg);
+      if (isAnomaly && !anomalyConfirm.checked) {
+        showAlert("Please confirm that the unusually high reading is correct.", "danger");
+        return;
+      }
+
+      loadingText.textContent = isEditMode ? "Updating reading..." : "Submitting reading...";
+      loadingOverlay.style.display = "flex";
+
+      const rDateVal = readingDate.value;
+      const dateParts = rDateVal.split("-");
+      const formattedReadingDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+      const timeStr = new Date().toLocaleTimeString("en-US", { hour12: false });
+
+      try {
+        let finalReadingId = "";
+
+        await runTransaction(db, async (transaction) => {
+          // 1. Fetch the latest consumer data inside transaction
+          const consumerRef = doc(db, "consumers", consumer.cin_no);
+          const consumerSnap = await transaction.get(consumerRef);
+          if (!consumerSnap.exists()) {
+            throw "Consumer no longer exists.";
+          }
+          const freshConsumer = consumerSnap.data();
+          freshConsumer.cin_no = consumerSnap.id;
+
+          let targetReadingId = editReadingId;
+          let freshOldReadingData = oldReadingData;
+
+          if (isEditMode) {
+            const oldReadRef = doc(db, "readings", editReadingId);
+            const oldReadSnap = await transaction.get(oldReadRef);
+            if (!oldReadSnap.exists()) {
+              throw "Old reading data not found.";
+            }
+            freshOldReadingData = oldReadSnap.data();
+          } else {
+            const newReadingRef = doc(collection(db, "readings"));
+            targetReadingId = newReadingRef.id;
+          }
+          finalReadingId = targetReadingId;
+
+          const editWindowExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes window
+          
+          let breakdown;
+          let finalOutstanding = 0;
+          let finalCredit = 0;
+
+          if (isEditMode && freshOldReadingData) {
+            const oldBreakdown = freshOldReadingData.full_bill_breakdown || {};
+            const oldCreditApplied = oldBreakdown.credit_applied || 0;
+
+            const baseOutstanding = oldBreakdown.previous_outstanding || 0;
+            const baseCredit = (freshConsumer.credit_balance || 0) + oldCreditApplied;
+
+            breakdown = calculateBill(
+              consumption,
+              freshConsumer,
+              rates,
+              baseOutstanding,
+              baseCredit,
+              activeCycle.last_payment_date,
+              null,
+              freshConsumer.avg_6month_kl || null
+            );
+
+            finalOutstanding = breakdown.previous_outstanding + breakdown.subtotal_before_lps - breakdown.credit_applied;
+            finalCredit = breakdown.remaining_credit;
+          } else {
+            breakdown = calculateBill(
+              consumption,
+              freshConsumer,
+              rates,
+              freshConsumer.outstanding_balance || 0,
+              freshConsumer.credit_balance || 0,
+              activeCycle.last_payment_date,
+              null,
+              freshConsumer.avg_6month_kl || null
+            );
+
+            finalOutstanding = (freshConsumer.outstanding_balance || 0) + breakdown.subtotal_before_lps - breakdown.credit_applied;
+            finalCredit = breakdown.remaining_credit;
+          }
+
+          const readingDocData = {
+            cin_no: freshConsumer.cin_no,
+            cycle_id: activeCycle.id,
+            previous_reading: isEditMode ? freshOldReadingData.previous_reading : freshConsumer.last_reading || freshConsumer.initial_meter_reading || 0,
+            current_reading: curr,
+            consumption: consumption,
+            reading_date: formattedReadingDate,
+            reading_time: timeStr,
+            reader_uid: currentReader.uid,
+            reader_name: currentReader.name,
+            full_bill_breakdown: breakdown,
+            status: "finalized",
+            edited_by_admin: false,
+            cannot_read_reason: null,
+            submitted_at: serverTimestamp(),
+            edit_window_expiry: Timestamp.fromDate(editWindowExpiry),
+            anomaly_flagged: isAnomaly
+          };
+
+          // Update readings and consumer documents
+          transaction.set(doc(db, "readings", targetReadingId), readingDocData);
+
+          transaction.update(consumerRef, {
+            last_reading: curr,
+            outstanding_balance: Math.ceil(finalOutstanding),
+            credit_balance: finalCredit,
+            updated_at: serverTimestamp()
+          });
+        });
+
+        loadingOverlay.style.display = "none";
+        window.location.href = `confirmation.html?reading_id=${finalReadingId}`;
+
+      } catch (error) {
+        console.error("Submission error:", error);
+        loadingOverlay.style.display = "none";
+        showAlert("An error occurred during submission: " + error, "danger");
+      }
+    });
   </script>
 </body>
 </html>

@@ -3,207 +3,402 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Search Consumer — RJB</title>
+  <title>Rajasthan Jal Board - Search Consumer</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <!-- Header -->
   <header class="header">
-    <div class="header__brand">
-      <img class="header__logo" src="rjb-logo.png" alt="RJB Logo" onerror="this.style.display='none'">
-      <span class="header__title">Rajasthan Jal Board</span>
-    </div>
-    <div class="header__right">
-      <span class="header__user" id="headerUser"></span>
-      <button class="header__logout" id="logoutBtn">Logout</button>
+    <div class="header-title">💧 RJB Mobile</div>
+    <div class="header-user">
+      <span id="header-user-name">Reader</span>
+      <button id="logout-btn" class="logout-btn">Logout</button>
     </div>
   </header>
 
-  <main>
-    <div class="container">
-      <div class="card section">
-        <h1 style="font-size:1.4rem;color:var(--primary);margin-bottom:1rem;">Search Consumer</h1>
-        <div class="search-bar">
-          <input type="text" id="searchInput" placeholder="Enter CIN No or Meter Serial Number" inputmode="text" autocomplete="off">
-          <button class="btn btn-primary" id="searchBtn">Search</button>
-        </div>
-        <button class="btn btn-secondary mt-1" id="clearBtn" style="width:100%">Clear</button>
-      </div>
-
-      <div id="loadingSpinner" class="loading-spinner hidden">
-        <div class="loading-spinner__ring"></div>
-        <span>Searching…</span>
-      </div>
-
-      <div id="errorMsg" class="alert alert-danger hidden"></div>
-
-      <!-- Consumer Info Panel -->
-      <div id="consumerPanel" class="card section hidden">
-        <div id="statusBanner" class="alert alert-warning hidden"></div>
-        <p class="section-title">Consumer Information</p>
-        <div class="info-panel" id="consumerInfo"></div>
-        <hr class="divider">
-        <div class="btn-group mt-1">
-          <button class="btn btn-primary flex-1" id="enterReadingBtn">Enter Reading</button>
-          <button class="btn btn-secondary flex-1" id="viewLedgerBtn">View Ledger</button>
-        </div>
-      </div>
-
-      <div id="notFoundMsg" class="alert alert-info hidden">No consumer found matching that CIN No or Meter Serial Number.</div>
+  <!-- Content Container -->
+  <div class="container">
+    <div style="margin-top: 15px; margin-bottom: 20px;">
+      <h1 style="font-size: 1.5rem; color: var(--primary); font-weight: bold;">Search Consumer</h1>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">Search by CIN or Meter Serial Number to input readings or view records.</p>
     </div>
-  </main>
+
+    <!-- Search Card -->
+    <div class="card">
+      <div id="alert-container"></div>
+      
+      <form id="search-form">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <input type="text" id="search-query" placeholder="Enter CIN No or Meter Serial" inputmode="text" style="text-align: center; font-weight: bold; text-transform: uppercase;" required>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button type="submit" class="btn btn-primary" style="flex: 2;">Search</button>
+          <button type="button" id="clear-btn" class="btn btn-secondary" style="flex: 1;">Clear</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Results Panel -->
+    <div id="results-panel" class="card" style="display: none;">
+      <h2>Consumer Found</h2>
+      
+      <div id="status-alert-container"></div>
+
+      <div class="info-panel">
+        <div>
+          <span class="info-label">Name</span>
+          <span id="res-name" class="info-value"></span>
+        </div>
+        <div>
+          <span class="info-label">CIN No</span>
+          <span id="res-cin" class="info-value"></span>
+        </div>
+        <div>
+          <span class="info-label">Zone</span>
+          <span id="res-zone" class="info-value"></span>
+        </div>
+        <div>
+          <span class="info-label">Category</span>
+          <span id="res-category" class="info-value"></span>
+        </div>
+        <div>
+          <span class="info-label">Meter Size</span>
+          <span id="res-meter-size" class="info-value"></span>
+        </div>
+        <div>
+          <span class="info-label">Meter Serial</span>
+          <span id="res-meter-serial" class="info-value"></span>
+        </div>
+        <div>
+          <span class="info-label">Last Reading</span>
+          <span id="res-last-reading" class="info-value" style="font-weight: bold; color: var(--primary);"></span>
+        </div>
+        <div>
+          <span class="info-label">Status</span>
+          <span id="res-status" class="info-value"></span>
+        </div>
+        <div style="grid-column: span 2;">
+          <span class="info-label">Address</span>
+          <span id="res-address" class="info-value"></span>
+        </div>
+      </div>
+
+      <!-- Extra info for Cashiers/Special categories -->
+      <div id="extra-info-container" class="info-panel" style="margin-top: 0; border-top: 1px dashed var(--border); display: none;"></div>
+
+      <div class="balance-row" style="margin-bottom: 20px;">
+        <div>
+          <span class="info-label">Outstanding Balance</span>
+          <span id="res-outstanding" class="info-value" style="color: var(--danger); font-weight: bold;"></span>
+        </div>
+        <div style="text-align: right;">
+          <span class="info-label">Credit Balance</span>
+          <span id="res-credit" class="info-value" style="color: var(--success); font-weight: bold;"></span>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+        <div id="reading-action-container"></div>
+        <button id="view-ledger-btn" class="btn btn-secondary" style="display: none;">View Ledger</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <nav class="nav-bar">
+    <a href="search.html" class="nav-item active">
+      <span class="nav-icon">🔍</span>
+      <span>Search</span>
+    </a>
+    <a href="ledger.html" class="nav-item" id="nav-ledger">
+      <span class="nav-icon">📖</span>
+      <span>Ledger</span>
+    </a>
+    <a href="my-readings.html" class="nav-item" id="nav-my-readings">
+      <span class="nav-icon">📋</span>
+      <span>My Readings</span>
+    </a>
+  </nav>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-spinner-overlay" style="display: none;">
+    <div style="text-align: center;">
+      <div class="spinner"></div>
+      <p style="margin-top: 12px; font-weight: bold; color: var(--primary);">Searching...</p>
+    </div>
+  </div>
 
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-    import { firebaseConfig } from './firebase_config.js';
+    import { auth, db } from "./firebase_config.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { doc, getDoc, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { formatCurrency, formatKL } from "./billing-engine.js";
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const searchForm = document.getElementById("search-form");
+    const searchQuery = document.getElementById("search-query");
+    const clearBtn = document.getElementById("clear-btn");
+    const alertContainer = document.getElementById("alert-container");
+    const resultsPanel = document.getElementById("results-panel");
+    const loadingOverlay = document.getElementById("loading-overlay");
+    const logoutBtn = document.getElementById("logout-btn");
+    const statusAlertContainer = document.getElementById("status-alert-container");
 
     let currentConsumer = null;
+    let currentUserProfile = null;
 
-    onAuthStateChanged(auth, (user) => {
-      if (!user) { window.location.href = 'index.html'; return; }
-      const profile = JSON.parse(sessionStorage.getItem('meter_reader_profile') || '{}');
-      document.getElementById('headerUser').textContent = profile.name || user.email;
-    });
-
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-      await signOut(auth);
-      sessionStorage.clear();
-      window.location.href = 'index.html';
-    });
-
-    document.getElementById('searchBtn').addEventListener('click', doSearch);
-    document.getElementById('searchInput').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') doSearch();
-    });
-    document.getElementById('clearBtn').addEventListener('click', clearAll);
-
-    function clearAll() {
-      document.getElementById('searchInput').value = '';
-      document.getElementById('consumerPanel').classList.add('hidden');
-      document.getElementById('errorMsg').classList.add('hidden');
-      document.getElementById('notFoundMsg').classList.add('hidden');
-      currentConsumer = null;
-    }
-
-    function showError(msg) {
-      const el = document.getElementById('errorMsg');
-      el.textContent = msg;
-      el.classList.remove('hidden');
-    }
-
-    function statusBadgeClass(status) {
-      const map = {
-        'Active': 'status-badge--active',
-        'Inactive': 'status-badge--inactive',
-        'Meter Faulty': 'status-badge--meter-faulty',
-        'Disconnected': 'status-badge--disconnected',
-        'Disputed': 'status-badge--disputed'
-      };
-      return map[status] || 'status-badge--inactive';
-    }
-
-    function formatDate(ts) {
-      if (!ts) return '—';
-      let d;
-      if (ts.toDate) d = ts.toDate();
-      else if (ts instanceof Date) d = ts;
-      else d = new Date(ts);
-      const dd = String(d.getDate()).padStart(2,'0');
-      const mm = String(d.getMonth()+1).padStart(2,'0');
-      const yyyy = d.getFullYear();
-      return `${dd}-${mm}-${yyyy}`;
-    }
-
-    function renderConsumer(c) {
-      currentConsumer = c;
-
-      // Status banner
-      const banner = document.getElementById('statusBanner');
-      if (c.consumer_status && c.consumer_status !== 'Active') {
-        banner.textContent = `⚠ ${c.consumer_status}`;
-        banner.classList.remove('hidden');
-      } else {
-        banner.classList.add('hidden');
-      }
-
-      // Info panel
-      const rows = [
-        ['CIN No.', c.cin_no],
-        ['Name', c.name],
-        ['Zone', c.zone],
-        ['Category', c.category],
-        ['Meter Size', c.meter_size],
-        ['Meter Serial No.', c.meter_serial_no],
-        ['Last Reading', c.last_reading != null ? `${Number(c.last_reading).toFixed(2)} KL` : '—'],
-        ['Status', `<span class="status-badge ${statusBadgeClass(c.consumer_status)}">${c.consumer_status || '—'}</span>`],
-        ['Address', [c.address_area_location, c.address_landmark, c.address_pin_code].filter(Boolean).join(', ') || '—'],
-        ['Contact', c.contact_number || '—'],
-      ];
-
-      document.getElementById('consumerInfo').innerHTML = rows.map(([label, val]) =>
-        `<div class="info-panel__row">
-          <span class="info-panel__label">${label}</span>
-          <span class="info-panel__value">${val || '—'}</span>
-        </div>`
-      ).join('');
-
-      document.getElementById('consumerPanel').classList.remove('hidden');
-      document.getElementById('notFoundMsg').classList.add('hidden');
-
-      document.getElementById('enterReadingBtn').onclick = () => {
-        window.location.href = `reading.html?cin=${encodeURIComponent(c.cin_no)}`;
-      };
-      document.getElementById('viewLedgerBtn').onclick = () => {
-        window.location.href = `ledger.html?cin=${encodeURIComponent(c.cin_no)}`;
-      };
-    }
-
-    async function doSearch() {
-      const q = document.getElementById('searchInput').value.trim();
-      if (!q) {
-        showError('Please enter a CIN No or Meter Serial Number.');
+    // Check Auth State and load active zones
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "index.html";
         return;
       }
-      document.getElementById('errorMsg').classList.add('hidden');
-      document.getElementById('consumerPanel').classList.add('hidden');
-      document.getElementById('notFoundMsg').classList.add('hidden');
-      document.getElementById('loadingSpinner').classList.remove('hidden');
+      
+      const profileStr = sessionStorage.getItem("meter_reader_profile");
+      if (profileStr) {
+        currentUserProfile = JSON.parse(profileStr);
+        document.getElementById("header-user-name").textContent = currentUserProfile.name;
+        if (currentUserProfile.role === "Cashier") {
+            document.getElementById("nav-my-readings").style.display = "none";
+            document.getElementById("nav-ledger").style.display = "none";
+        }
+      } else {
+        // Fallback if session storage was cleared
+        loadingOverlay.style.display = "flex";
+        try {
+          const docSnap = await getDoc(doc(db, "meter_readers", user.uid));
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            currentUserProfile = {
+              uid: user.uid,
+              name: data.name || "Meter Reader",
+              employee_id: data.employee_id || "",
+              zone: data.zone || null,
+              role: data.role || "Reader"
+            };
+            sessionStorage.setItem("meter_reader_profile", JSON.stringify(currentUserProfile));
+            document.getElementById("header-user-name").textContent = data.name;
+          }
+        } catch(e) {
+          console.error(e);
+        }
+        loadingOverlay.style.display = "none";
+      }
 
+      // Live reload of active zones from Firestore
+      refreshActiveZones();
+    });
+
+    async function refreshActiveZones() {
       try {
-        // Try by CIN No (direct get)
-        const cinDoc = await getDoc(doc(db, 'consumers', q));
-        if (cinDoc.exists()) {
-          renderConsumer({ cin_no: cinDoc.id, ...cinDoc.data() });
-          document.getElementById('loadingSpinner').classList.add('hidden');
-          return;
-        }
-
-        // Try by meter serial no (indexed query)
-        const msnQuery = query(
-          collection(db, 'consumers'),
-          where('meter_serial_no', '==', q),
-          limit(1)
-        );
-        const snap = await getDocs(msnQuery);
-        if (!snap.empty) {
-          const d = snap.docs[0];
-          renderConsumer({ cin_no: d.id, ...d.data() });
-          document.getElementById('loadingSpinner').classList.add('hidden');
-          return;
-        }
-
-        document.getElementById('notFoundMsg').classList.remove('hidden');
-      } catch (err) {
-        showError('Search failed. Please check your connection and try again.');
-      } finally {
-        document.getElementById('loadingSpinner').classList.add('hidden');
+        const billingCyclesRef = collection(db, "billing_cycles");
+        const openCyclesQuery = query(billingCyclesRef, where("status", "==", "open"));
+        const openCyclesSnapshot = await getDocs(openCyclesQuery);
+        
+        let activeZones = [];
+        openCyclesSnapshot.forEach((doc) => {
+          const cycleData = doc.data();
+          if (cycleData.zones && Array.isArray(cycleData.zones)) {
+            activeZones = activeZones.concat(cycleData.zones);
+          }
+        });
+        
+        activeZones = [...new Set(activeZones.map(z => parseInt(z)))];
+        sessionStorage.setItem("active_zones", JSON.stringify(activeZones));
+      } catch (error) {
+        console.error("Error refreshing active zones:", error);
       }
     }
+
+    // Logout Functionality
+    logoutBtn.addEventListener("click", async () => {
+      loadingOverlay.style.display = "flex";
+      try {
+        await signOut(auth);
+        sessionStorage.clear();
+        window.location.href = "index.html";
+      } catch (error) {
+        console.error("Logout error:", error);
+      }
+      loadingOverlay.style.display = "none";
+    });
+
+    function showAlert(message, type = "danger") {
+      alertContainer.innerHTML = `
+        <div class="alert alert-${type}">
+          <span>${message}</span>
+        </div>
+      `;
+    }
+
+    function clearAlert() {
+      alertContainer.innerHTML = "";
+    }
+
+    clearBtn.addEventListener("click", () => {
+      searchQuery.value = "";
+      clearAlert();
+      resultsPanel.style.display = "none";
+      currentConsumer = null;
+    });
+
+    searchForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      clearAlert();
+      resultsPanel.style.display = "none";
+      statusAlertContainer.innerHTML = "";
+      const extraInfoContainer = document.getElementById("extra-info-container");
+      extraInfoContainer.innerHTML = "";
+      extraInfoContainer.style.display = "none";
+
+      const queryVal = searchQuery.value.trim().toUpperCase();
+      if (!queryVal) {
+        showAlert("Please enter a CIN No or Meter Serial Number.", "danger");
+        return;
+      }
+
+      loadingOverlay.style.display = "flex";
+
+      try {
+        // 1. Try CIN Direct Lookup
+        const cinDocRef = doc(db, "consumers", queryVal);
+        let consumerDoc = await getDoc(cinDocRef);
+        
+        // 2. If not found, try searching by Meter Serial No
+        if (!consumerDoc.exists()) {
+          const consumersRef = collection(db, "consumers");
+          const q = query(consumersRef, where("meter_serial_no", "==", queryVal));
+          const querySnapshot = await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            consumerDoc = querySnapshot.docs[0];
+          }
+        }
+
+        if (!consumerDoc.exists()) {
+          loadingOverlay.style.display = "none";
+          showAlert("No consumer found matching that CIN or Meter Serial Number.", "danger");
+          return;
+        }
+
+        // Display results
+        currentConsumer = consumerDoc.data();
+        // Set CIN in the data if it's retrieved via collection query
+        if (!currentConsumer.cin_no) {
+          currentConsumer.cin_no = consumerDoc.id;
+        }
+
+        document.getElementById("res-name").textContent = currentConsumer.name || "—";
+        document.getElementById("res-cin").textContent = currentConsumer.cin_no || "—";
+        document.getElementById("res-zone").textContent = currentConsumer.zone || "—";
+        document.getElementById("res-category").textContent = currentConsumer.category || "—";
+        document.getElementById("res-meter-size").textContent = currentConsumer.meter_size || "—";
+        document.getElementById("res-meter-serial").textContent = currentConsumer.meter_serial_no || "—";
+        document.getElementById("res-last-reading").textContent = formatKL(currentConsumer.last_reading || currentConsumer.initial_meter_reading || 0);
+        document.getElementById("res-status").textContent = currentConsumer.consumer_status || "—";
+        
+        const isCashier = currentUserProfile && currentUserProfile.role === "Cashier";
+        if (isCashier) {
+            // Append extra data for cashiers
+            let extraData = `
+                <div>
+                    <span class="info-label">Has Sewer Connection?</span>
+                    <span class="info-value">${currentConsumer.has_sewer_connection ? "Yes" : "No"}</span>
+                </div>
+            `;
+            if (currentConsumer.has_sewer_connection) {
+                extraData += `
+                <div>
+                    <span class="info-label">Sewerage Sub-Cat</span>
+                    <span class="info-value">${currentConsumer.sewerage_sub_category || "Standard"}</span>
+                </div>
+                `;
+                if (currentConsumer.sewerage_sub_category === "Hotel") {
+                    extraData += `
+                    <div>
+                        <span class="info-label">Rooms Count</span>
+                        <span class="info-value">${currentConsumer.num_rooms || 0}</span>
+                    </div>
+                    `;
+                }
+                if (currentConsumer.sewerage_sub_category === "Domestic (Own Supply)") {
+                    extraData += `
+                    <div>
+                        <span class="info-label">Plot Area</span>
+                        <span class="info-value">${currentConsumer.plot_area_sqmtr || 0} sq.mtr</span>
+                    </div>
+                    `;
+                }
+            }
+            extraInfoContainer.innerHTML = extraData;
+            extraInfoContainer.style.display = "grid";
+        }
+
+        const addressText = [
+          currentConsumer.address_area_location,
+          currentConsumer.address_landmark,
+          currentConsumer.address_pin_code ? `PIN: ${currentConsumer.address_pin_code}` : ""
+        ].filter(Boolean).join(", ");
+        document.getElementById("res-address").textContent = addressText || "—";
+
+        document.getElementById("res-outstanding").textContent = formatCurrency(currentConsumer.outstanding_balance || 0);
+        document.getElementById("res-credit").textContent = formatCurrency(currentConsumer.credit_balance || 0);
+
+        // Warning banner if status is not Active
+        if (currentConsumer.consumer_status !== "Active") {
+          statusAlertContainer.innerHTML = `
+            <div class="alert alert-warning">
+              <span>⚠️ Status Warning: This consumer's account is marked as <strong>${currentConsumer.consumer_status}</strong>.</span>
+            </div>
+          `;
+        }
+
+        // Enforce active zone check
+        const activeZones = JSON.parse(sessionStorage.getItem("active_zones") || "[]");
+        const isZoneActive = activeZones.includes(parseInt(currentConsumer.zone));
+        const actionContainer = document.getElementById("reading-action-container");
+
+        if (isCashier) {
+            document.getElementById("view-ledger-btn").style.display = "none";
+            actionContainer.innerHTML = `
+                <button id="cash-in-btn" class="btn btn-success">💰 Cash In Payment</button>
+            `;
+            document.getElementById("cash-in-btn").addEventListener("click", () => {
+                window.location.href = `cash-in.html?cin=${currentConsumer.cin_no}`;
+            });
+        } else {
+            document.getElementById("view-ledger-btn").style.display = "block";
+            if (isZoneActive) {
+                actionContainer.innerHTML = `
+                    <button id="enter-reading-btn" class="btn btn-primary">📖 Enter Reading</button>
+                `;
+                document.getElementById("enter-reading-btn").addEventListener("click", () => {
+                    window.location.href = `reading.html?cin=${currentConsumer.cin_no}`;
+                });
+            } else {
+                actionContainer.innerHTML = `
+                    <button class="btn zone-warning" disabled>No Active Cycle — Zone ${currentConsumer.zone}</button>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: 4px;">
+                        Reading entry is only available when a billing cycle is active for this zone.
+                    </p>
+                `;
+            }
+        }
+
+        resultsPanel.style.display = "block";
+      } catch (error) {
+        console.error("Search error:", error);
+        showAlert("An error occurred while fetching consumer details. Please try again.", "danger");
+      }
+
+      loadingOverlay.style.display = "none";
+    });
+
+    document.getElementById("view-ledger-btn").addEventListener("click", () => {
+      if (currentConsumer) {
+        window.location.href = `ledger.html?cin=${currentConsumer.cin_no}`;
+      }
+    });
   </script>
 </body>
 </html>

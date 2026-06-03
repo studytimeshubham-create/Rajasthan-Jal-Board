@@ -3,220 +3,294 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cannot Read — RJB</title>
+  <title>Rajasthan Jal Board - Record Cannot Read</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <!-- Header -->
   <header class="header">
-    <div class="header__brand">
-      <img class="header__logo" src="rjb-logo.png" alt="RJB Logo" onerror="this.style.display='none'">
-      <span class="header__title">Rajasthan Jal Board</span>
-    </div>
-    <div class="header__right">
-      <span class="header__user" id="headerUser"></span>
-      <button class="header__logout" id="logoutBtn">Logout</button>
+    <div class="header-title">💧 RJB Mobile</div>
+    <div class="header-user">
+      <span id="header-user-name">Reader</span>
+      <button id="logout-btn" class="logout-btn">Logout</button>
     </div>
   </header>
 
-  <main>
-    <div class="container">
-      <div id="loadingSpinner" class="loading-spinner">
-        <div class="loading-spinner__ring"></div>
-        <span>Loading consumer…</span>
+  <!-- Content Container -->
+  <div class="container">
+    <div style="margin-top: 15px; margin-bottom: 20px;">
+      <h1 style="font-size: 1.5rem; color: var(--primary); font-weight: bold;">Skip Meter Reading</h1>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">Record why a meter reading cannot be collected at this time.</p>
+    </div>
+
+    <div id="critical-error-container"></div>
+
+    <div id="main-content" style="display: none;">
+      <!-- Consumer Profile Info -->
+      <div class="card">
+        <h2>Consumer Details</h2>
+        <div class="info-panel">
+          <div>
+            <span class="info-label">Consumer Name</span>
+            <span id="info-name" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">CIN No</span>
+            <span id="info-cin" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">Zone</span>
+            <span id="info-zone" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">Meter Serial</span>
+            <span id="info-meter-serial" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">Last Reading</span>
+            <span id="info-last-reading" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">Status</span>
+            <span id="info-status" class="info-value"></span>
+          </div>
+        </div>
       </div>
 
-      <div id="pageContent" class="hidden">
-        <div id="errorMsg" class="alert alert-danger hidden"></div>
+      <!-- Skip Logging Form -->
+      <div class="card" id="form-card">
+        <h2>Report Premises Inaccessibility / Fault</h2>
+        <div id="alert-container"></div>
 
-        <!-- Consumer Info -->
-        <div class="card section">
-          <p class="section-title">Consumer Information</p>
-          <div class="info-panel" id="consumerInfo"></div>
-        </div>
-
-        <!-- Cannot Read Form -->
-        <div id="formSection" class="card section">
-          <p class="section-title">Cannot Read — Record Reason</p>
-          <p class="text-muted mb-1" style="font-size:0.9rem;">Select the reason why the meter could not be read. The previous reading will remain unchanged.</p>
-
+        <form id="skip-form">
           <div class="form-group">
-            <label for="reasonSelect">Reason</label>
-            <select id="reasonSelect">
-              <option value="">— Select a reason —</option>
-              <option value="Locked Premises">Locked Premises</option>
-              <option value="Meter Faulty">Meter Faulty</option>
-              <option value="Meter Not Found">Meter Not Found</option>
-              <option value="Other">Other</option>
+            <label for="skip-reason">Select Reason</label>
+            <select id="skip-reason" required>
+              <option value="" disabled selected>-- Choose Reason --</option>
+              <option value="Locked Premises">Locked Premises (premises closed/no access)</option>
+              <option value="Meter Faulty">Meter Faulty (broken glass/no display/stuck)</option>
+              <option value="Meter Not Found">Meter Not Found (meter missing/removed)</option>
+              <option value="Other">Other Reason</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label for="notesInput">Additional Notes (optional)</label>
-            <textarea id="notesInput" rows="3" placeholder="Any additional information…"></textarea>
+            <label for="notes">Additional Explanation / Notes</label>
+            <textarea id="notes" placeholder="Provide more context (e.g. resident not home, dog inside courtyard, etc.)..." required></textarea>
           </div>
 
-          <button class="btn btn-primary btn-full" id="submitBtn">Record Cannot Read</button>
-        </div>
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+            <button type="submit" class="btn btn-danger">Log Skip / Cannot Read</button>
+            <button type="button" onclick="window.history.back()" class="btn btn-secondary">Cancel</button>
+          </div>
+        </form>
+      </div>
 
-        <!-- Success Message -->
-        <div id="successSection" class="hidden">
-          <div class="confirmation-box">
-            <div class="confirmation-box__icon">📋</div>
-            <div class="confirmation-box__name" id="successName"></div>
-            <div class="confirmation-box__detail">Cannot Read recorded successfully</div>
-          </div>
-          <div class="section mt-1">
-            <button class="btn btn-primary btn-full" id="searchAnotherBtn">Search Another Consumer</button>
-          </div>
-        </div>
+      <div class="card" id="success-card" style="display: none; text-align: center; padding: 25px 15px;">
+        <div style="font-size: 3rem; color: var(--accent); margin-bottom: 15px;">⚠️</div>
+        <h2 style="border-bottom: none; margin-bottom: 8px;">Cannot Read Recorded</h2>
+        <p id="success-msg" style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 25px;"></p>
+        
+        <button onclick="window.location.href='search.html'" class="btn btn-primary">🔍 Search Another Consumer</button>
       </div>
     </div>
-  </main>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-spinner-overlay">
+    <div style="text-align: center;">
+      <div class="spinner"></div>
+      <p id="loading-text" style="margin-top: 12px; font-weight: bold; color: var(--primary);">Loading details...</p>
+    </div>
+  </div>
 
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import {
-      getFirestore, doc, getDoc, collection, addDoc, serverTimestamp
-    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-    import { firebaseConfig } from './firebase_config.js';
+    import { auth, db } from "./firebase_config.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { doc, getDoc, getDocs, collection, query, where, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { formatKL } from "./billing-engine.js";
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const loadingOverlay = document.getElementById("loading-overlay");
+    const loadingText = document.getElementById("loading-text");
+    const criticalErrorContainer = document.getElementById("critical-error-container");
+    const mainContent = document.getElementById("main-content");
+    const alertContainer = document.getElementById("alert-container");
+    const logoutBtn = document.getElementById("logout-btn");
 
-    const params = new URLSearchParams(window.location.search);
-    const cinNo = params.get('cin');
+    // Form cards
+    const formCard = document.getElementById("form-card");
+    const successCard = document.getElementById("success-card");
+    const skipForm = document.getElementById("skip-form");
+    const skipReason = document.getElementById("skip-reason");
+    const notesInput = document.getElementById("notes");
+    const successMsg = document.getElementById("success-msg");
 
+    // State Variables
+    let cin = "";
     let consumer = null;
-    let readerProfile = null;
+    let activeCycle = null;
+    let currentReader = null;
 
+    // Check Auth State
     onAuthStateChanged(auth, async (user) => {
-      if (!user) { window.location.href = 'index.html'; return; }
-      readerProfile = JSON.parse(sessionStorage.getItem('meter_reader_profile') || '{}');
-      document.getElementById('headerUser').textContent = readerProfile.name || user.email;
-
-      if (!cinNo) {
-        showError('No consumer specified. Please go back and search again.');
-        document.getElementById('loadingSpinner').classList.add('hidden');
-        document.getElementById('pageContent').classList.remove('hidden');
+      if (!user) {
+        window.location.href = "index.html";
         return;
       }
-      await loadConsumer();
+      
+      const profileStr = sessionStorage.getItem("meter_reader_profile");
+      if (profileStr) {
+        currentReader = JSON.parse(profileStr);
+        document.getElementById("header-user-name").textContent = currentReader.name;
+      }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      cin = urlParams.get("cin");
+
+      if (!cin) {
+        showCriticalError("Consumer CIN is missing from URL.");
+        return;
+      }
+
+      loadConsumerAndCycle();
     });
 
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-      await signOut(auth);
-      sessionStorage.clear();
-      window.location.href = 'index.html';
-    });
-
-    document.getElementById('searchAnotherBtn').addEventListener('click', () => {
-      window.location.href = 'search.html';
-    });
-
-    async function loadConsumer() {
+    // Logout functionality
+    logoutBtn.addEventListener("click", async () => {
+      loadingOverlay.style.display = "flex";
       try {
-        const cDoc = await getDoc(doc(db, 'consumers', cinNo));
-        if (!cDoc.exists()) {
-          showError('Consumer not found. Please go back and search again.');
+        await signOut(auth);
+        sessionStorage.clear();
+        window.location.href = "index.html";
+      } catch (error) {
+        console.error("Logout error:", error);
+      }
+      loadingOverlay.style.display = "none";
+    });
+
+    function showCriticalError(msg) {
+      loadingOverlay.style.display = "none";
+      criticalErrorContainer.innerHTML = `
+        <div class="alert alert-danger" style="margin-top: 20px;">
+          <span>${msg}</span>
+        </div>
+        <button onclick="window.location.href='search.html'" class="btn btn-secondary" style="margin-top: 10px;">Back to Search</button>
+      `;
+      mainContent.style.display = "none";
+    }
+
+    async function loadConsumerAndCycle() {
+      loadingText.textContent = "Fetching consumer records...";
+      loadingOverlay.style.display = "flex";
+
+      try {
+        // 1. Fetch Consumer Doc
+        const consumerDoc = await getDoc(doc(db, "consumers", cin));
+        if (!consumerDoc.exists()) {
+          showCriticalError(`Consumer not found for CIN: ${cin}`);
           return;
         }
-        consumer = { cin_no: cDoc.id, ...cDoc.data() };
-        renderConsumerInfo();
-        document.getElementById('submitBtn').addEventListener('click', submitCannotRead);
-      } catch (err) {
-        showError('Failed to load consumer. Please check your connection and try again.');
-      } finally {
-        document.getElementById('loadingSpinner').classList.add('hidden');
-        document.getElementById('pageContent').classList.remove('hidden');
+        consumer = consumerDoc.data();
+        consumer.cin_no = consumerDoc.id;
+
+        // 2. Fetch open cycles and verify active zone
+        const cyclesRef = collection(db, "billing_cycles");
+        const q = query(cyclesRef, where("status", "==", "open"));
+        const snapshot = await getDocs(q);
+        
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.zones && data.zones.includes(parseInt(consumer.zone))) {
+            activeCycle = data;
+            activeCycle.id = doc.id;
+          }
+        });
+
+        if (!activeCycle) {
+          showCriticalError(`No active billing cycle found for Zone ${consumer.zone} in Firestore.`);
+          return;
+        }
+
+        // Setup Consumer Display Fields
+        document.getElementById("info-name").textContent = consumer.name || "";
+        document.getElementById("info-cin").textContent = consumer.cin_no || "";
+        document.getElementById("info-zone").textContent = consumer.zone || "";
+        document.getElementById("info-meter-serial").textContent = consumer.meter_serial_no || "";
+        
+        const lastRead = consumer.last_reading !== undefined ? consumer.last_reading : (consumer.initial_meter_reading || 0);
+        document.getElementById("info-last-reading").textContent = formatKL(lastRead);
+        document.getElementById("info-status").textContent = consumer.consumer_status || "";
+
+        loadingOverlay.style.display = "none";
+        mainContent.style.display = "block";
+
+      } catch (error) {
+        console.error("Error loading reader/consumer setup:", error);
+        showCriticalError("Failed to initialize Skip Meter Reading page.");
       }
     }
 
-    function statusBadgeClass(status) {
-      const map = {
-        'Active':'status-badge--active','Inactive':'status-badge--inactive',
-        'Meter Faulty':'status-badge--meter-faulty','Disconnected':'status-badge--disconnected','Disputed':'status-badge--disputed'
-      };
-      return map[status] || 'status-badge--inactive';
-    }
+    skipForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const reasonVal = skipReason.value;
+      const notesVal = notesInput.value.trim();
 
-    function renderConsumerInfo() {
-      const rows = [
-        ['CIN No.', consumer.cin_no],
-        ['Name', consumer.name],
-        ['Zone', consumer.zone],
-        ['Category', consumer.category],
-        ['Meter Size', consumer.meter_size],
-        ['Meter Serial', consumer.meter_serial_no],
-        ['Last Reading', consumer.last_reading != null ? `${Number(consumer.last_reading).toFixed(2)} KL` : '—'],
-        ['Status', `<span class="status-badge ${statusBadgeClass(consumer.consumer_status)}">${consumer.consumer_status || '—'}</span>`],
-      ];
-      document.getElementById('consumerInfo').innerHTML = rows.map(([l,v]) =>
-        `<div class="info-panel__row"><span class="info-panel__label">${l}</span><span class="info-panel__value">${v||'—'}</span></div>`
-      ).join('');
-    }
-
-    async function submitCannotRead() {
-      const reason = document.getElementById('reasonSelect').value;
-      const notes = document.getElementById('notesInput').value.trim();
-
-      if (!reason) {
-        showError('Please select a reason.');
+      if (!reasonVal) {
+        alert("Please select a reason.");
+        return;
+      }
+      
+      if (!notesVal) {
+        alert("Please provide notes explanation.");
         return;
       }
 
-      const btn = document.getElementById('submitBtn');
-      btn.disabled = true;
-      btn.textContent = 'Submitting…';
-      hideError();
+      loadingText.textContent = "Logging skipped status...";
+      loadingOverlay.style.display = "flex";
 
       try {
-        await addDoc(collection(db, 'readings'), {
+        const skippedReadingData = {
           cin_no: consumer.cin_no,
-          cycle_id: null,
-          previous_reading: consumer.last_reading != null ? consumer.last_reading : null,
+          cycle_id: activeCycle.id,
+          previous_reading: consumer.last_reading !== undefined ? consumer.last_reading : (consumer.initial_meter_reading || 0),
           current_reading: null,
           consumption: null,
-          reading_date: todayStr(),
-          reading_time: new Date().toTimeString().slice(0,5),
-          reader_uid: readerProfile.uid,
-          reader_name: readerProfile.name,
+          reading_date: null,
+          reading_time: null,
+          reader_uid: currentReader.uid,
+          reader_name: currentReader.name,
           full_bill_breakdown: null,
-          status: 'skipped',
-          cannot_read_reason: reason,
-          notes: notes || null,
+          status: "skipped",
           edited_by_admin: false,
+          cannot_read_reason: reasonVal,
+          notes: notesVal,
           submitted_at: serverTimestamp(),
-          edit_window_expiry: null
-        });
-        // Do NOT update consumer last_reading
+          edit_window_expiry: null,
+          anomaly_flagged: false
+        };
 
-        document.getElementById('formSection').classList.add('hidden');
-        document.getElementById('successName').textContent = consumer.name;
-        document.getElementById('successSection').classList.remove('hidden');
-      } catch (err) {
-        showError('Submission failed. Please check your connection and try again.');
-        btn.disabled = false;
-        btn.textContent = 'Record Cannot Read';
+        // Write readings document
+        await addDoc(collection(db, "readings"), skippedReadingData);
+
+        // Success state
+        loadingOverlay.style.display = "none";
+        formCard.style.display = "none";
+        
+        successMsg.innerHTML = `Skip/Cannot Read record has been saved successfully for consumer <strong>${consumer.name}</strong> (CIN: ${consumer.cin_no}) under Reason: <strong>${reasonVal}</strong>.<br><br>The consumer's outstanding balance remains unchanged.`;
+        successCard.style.display = "block";
+
+      } catch (error) {
+        console.error("Error writing skipped reading:", error);
+        loadingOverlay.style.display = "none";
+        alertContainer.innerHTML = `
+          <div class="alert alert-danger">
+            <span>Failed to record status. Please try again.</span>
+          </div>
+        `;
       }
-    }
-
-    function todayStr() {
-      const d = new Date();
-      const dd = String(d.getDate()).padStart(2,'0');
-      const mm = String(d.getMonth()+1).padStart(2,'0');
-      return `${dd}-${mm}-${d.getFullYear()}`;
-    }
-
-    function showError(msg) {
-      const el = document.getElementById('errorMsg');
-      el.textContent = msg;
-      el.classList.remove('hidden');
-    }
-    function hideError() {
-      document.getElementById('errorMsg').classList.add('hidden');
-    }
+    });
   </script>
 </body>
 </html>

@@ -3,440 +3,521 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Consumer Ledger — RJB</title>
+  <title>Rajasthan Jal Board - Consumer Ledger</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <!-- Header -->
   <header class="header">
-    <div class="header__brand">
-      <img class="header__logo" src="rjb-logo.png" alt="RJB Logo" onerror="this.style.display='none'">
-      <span class="header__title">Rajasthan Jal Board</span>
-    </div>
-    <div class="header__right">
-      <span class="header__user" id="headerUser"></span>
-      <button class="header__logout" id="logoutBtn">Logout</button>
+    <div class="header-title">💧 RJB Mobile</div>
+    <div class="header-user">
+      <span id="header-user-name">Reader</span>
+      <button id="logout-btn" class="logout-btn">Logout</button>
     </div>
   </header>
 
-  <main>
-    <div class="container">
-      <!-- Search if no cin param -->
-      <div id="searchSection" class="card section hidden">
-        <h2 style="font-size:1.2rem;color:var(--primary);margin-bottom:1rem;">Consumer Ledger</h2>
-        <div class="search-bar">
-          <input type="text" id="searchInput" placeholder="Enter CIN No or Meter Serial Number" inputmode="text" autocomplete="off">
-          <button class="btn btn-primary" id="searchBtn">Search</button>
+  <!-- Content Container -->
+  <div class="container">
+    <div style="margin-top: 15px; margin-bottom: 20px;">
+      <h1 style="font-size: 1.5rem; color: var(--primary); font-weight: bold;">Consumer Ledger</h1>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">Historical 12-month records of bills and payments.</p>
+    </div>
+
+    <div id="alert-container"></div>
+
+    <!-- Search Panel (shown if no CIN in URL) -->
+    <div class="card" id="ledger-search-card" style="display: none;">
+      <h2>Lookup Consumer Ledger</h2>
+      <form id="ledger-search-form">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <input type="text" id="ledger-search-query" placeholder="Enter CIN No or Meter Serial" inputmode="text" style="text-align: center; font-weight: bold; text-transform: uppercase;" required>
         </div>
-        <div id="searchError" class="alert alert-danger hidden mt-1"></div>
-      </div>
+        <button type="submit" class="btn btn-primary">Fetch Ledger</button>
+      </form>
+    </div>
 
-      <div id="loadingSpinner" class="loading-spinner hidden">
-        <div class="loading-spinner__ring"></div>
-        <span>Loading ledger…</span>
-      </div>
-
-      <div id="pageContent" class="hidden">
-        <div id="errorMsg" class="alert alert-danger hidden"></div>
-
-        <!-- Consumer Info Card -->
-        <div class="card section">
-          <p class="section-title">Consumer Information</p>
-          <div class="info-panel" id="consumerInfo"></div>
-        </div>
-
-        <!-- Balances -->
-        <div class="card section">
-          <p class="section-title">Account Balance</p>
-          <div class="info-panel" id="balanceInfo"></div>
-          <div class="info-panel mt-1" id="cycleStatus"></div>
-        </div>
-
-        <!-- Bills Table -->
-        <div class="card section">
-          <p class="section-title">Bills (Last 12 Months)</p>
-          <div class="ledger-table-wrapper">
-            <table class="ledger-table">
-              <thead>
-                <tr><th>Date</th><th>Consumption</th><th class="right">Amount</th><th>Status</th></tr>
-              </thead>
-              <tbody id="billsBody">
-                <tr><td colspan="4" class="text-muted text-center">Loading…</td></tr>
-              </tbody>
-            </table>
+    <!-- Main Ledger Content -->
+    <div id="ledger-content" style="display: none;">
+      <!-- Consumer Profile details -->
+      <div class="card">
+        <h2>Consumer Profile</h2>
+        <div class="info-panel">
+          <div>
+            <span class="info-label">Name</span>
+            <span id="c-name" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">CIN No</span>
+            <span id="c-cin" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">Zone</span>
+            <span id="c-zone" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">Category</span>
+            <span id="c-category" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">Meter Size</span>
+            <span id="c-meter-size" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">Meter Serial</span>
+            <span id="c-meter-serial" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">Contact</span>
+            <span id="c-contact" class="info-value"></span>
+          </div>
+          <div>
+            <span class="info-label">APL / BPL</span>
+            <span id="c-aplbpl" class="info-value"></span>
+          </div>
+          <div style="grid-column: span 2;">
+            <span class="info-label">Address</span>
+            <span id="c-address" class="info-value"></span>
           </div>
         </div>
 
-        <!-- Payments Table -->
-        <div class="card section">
-          <p class="section-title">Payments (Last 12 Months)</p>
-          <div class="ledger-table-wrapper">
-            <table class="ledger-table">
-              <thead>
-                <tr><th>Date</th><th>Mode</th><th class="right">Amount</th></tr>
-              </thead>
-              <tbody id="paymentsBody">
-                <tr><td colspan="3" class="text-muted text-center">Loading…</td></tr>
-              </tbody>
-            </table>
+        <div class="balance-row" style="margin-top: 15px;">
+          <div>
+            <span class="info-label">Outstanding Balance</span>
+            <span id="c-outstanding" class="info-value" style="color: var(--danger); font-weight: bold; font-size: 1.1rem;">₹0.00</span>
           </div>
+          <div style="text-align: right;">
+            <span class="info-label">Credit Balance</span>
+            <span id="c-credit" class="info-value" style="color: var(--success); font-weight: bold; font-size: 1.1rem;">₹0.00</span>
+          </div>
+        </div>
+
+        <!-- Current cycle status card inline -->
+        <div id="c-cycle-status-card" style="margin-top: 15px; padding: 10px 12px; border-radius: 6px; font-size: 0.9rem; font-weight: bold; display: flex; align-items: center; justify-content: space-between;">
+          <span>Current Billing Cycle:</span>
+          <span id="c-cycle-status-badge" class="status-badge">PENDING</span>
+        </div>
+      </div>
+
+      <!-- Historical Bills Tab/Section -->
+      <div class="card">
+        <h2>Bills Log (Last 12 Months)</h2>
+        <div class="table-container">
+          <table class="ledger-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Consumption</th>
+                <th>Bill Amount</th>
+                <th>Payment Status</th>
+              </tr>
+            </thead>
+            <tbody id="bills-table-body">
+              <!-- Bill rows populated here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Historical Payments Tab/Section -->
+      <div class="card">
+        <h2>Payments Log (Last 12 Months)</h2>
+        <div class="table-container">
+          <table class="ledger-table">
+            <thead>
+              <tr>
+                <th>Receipt Date</th>
+                <th>Amount Paid</th>
+                <th>Payment Mode</th>
+              </tr>
+            </thead>
+            <tbody id="payments-table-body">
+              <!-- Payment rows populated here -->
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
-  </main>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <nav class="nav-bar">
+    <a href="search.html" class="nav-item">
+      <span class="nav-icon">🔍</span>
+      <span>Search</span>
+    </a>
+    <a href="ledger.html" class="nav-item active">
+      <span class="nav-icon">📖</span>
+      <span>Ledger</span>
+    </a>
+    <a href="my-readings.html" class="nav-item">
+      <span class="nav-icon">📋</span>
+      <span>My Readings</span>
+    </a>
+  </nav>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-spinner-overlay" style="display: none;">
+    <div style="text-align: center;">
+      <div class="spinner"></div>
+      <p id="loading-text" style="margin-top: 12px; font-weight: bold; color: var(--primary);">Fetching records...</p>
+    </div>
+  </div>
 
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import {
-      getFirestore, doc, getDoc, collection, query, where, getDocs,
-      orderBy, Timestamp, limit
-    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-    import { firebaseConfig } from './firebase_config.js';
+    import { auth, db } from "./firebase_config.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { doc, getDoc, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { formatCurrency, formatKL, parseDate } from "./billing-engine.js";
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const loadingOverlay = document.getElementById("loading-overlay");
+    const loadingText = document.getElementById("loading-text");
+    const alertContainer = document.getElementById("alert-container");
+    const logoutBtn = document.getElementById("logout-btn");
+    
+    // Main UI cards
+    const ledgerSearchCard = document.getElementById("ledger-search-card");
+    const ledgerContent = document.getElementById("ledger-content");
+    const ledgerSearchForm = document.getElementById("ledger-search-form");
+    const ledgerSearchQuery = document.getElementById("ledger-search-query");
 
-    const params = new URLSearchParams(window.location.search);
-    let cinNo = params.get('cin');
+    // Profile fields
+    const cName = document.getElementById("c-name");
+    const cCin = document.getElementById("c-cin");
+    const cZone = document.getElementById("c-zone");
+    const cCategory = document.getElementById("c-category");
+    const cMeterSize = document.getElementById("c-meter-size");
+    const cMeterSerial = document.getElementById("c-meter-serial");
+    const cContact = document.getElementById("c-contact");
+    const cAplBpl = document.getElementById("c-aplbpl");
+    const cAddress = document.getElementById("c-address");
+    const cOutstanding = document.getElementById("c-outstanding");
+    const cCredit = document.getElementById("c-credit");
+    const cCycleStatusCard = document.getElementById("c-cycle-status-card");
+    const cCycleStatusBadge = document.getElementById("c-cycle-status-badge");
 
+    // Table bodies
+    const billsTableBody = document.getElementById("bills-table-body");
+    const paymentsTableBody = document.getElementById("payments-table-body");
+
+    // State Variables
+    let cin = "";
+    let consumer = null;
+    let activeCycle = null;
+    let activeZones = [];
+
+    // Check Auth State
     onAuthStateChanged(auth, async (user) => {
-      if (!user) { window.location.href = 'index.html'; return; }
-      const profile = JSON.parse(sessionStorage.getItem('meter_reader_profile') || '{}');
-      document.getElementById('headerUser').textContent = profile.name || user.email;
+      if (!user) {
+        window.location.href = "index.html";
+        return;
+      }
+      
+      const profileStr = sessionStorage.getItem("meter_reader_profile");
+      if (profileStr) {
+        const profile = JSON.parse(profileStr);
+        document.getElementById("header-user-name").textContent = profile.name;
+      }
 
-      if (!cinNo) {
-        document.getElementById('searchSection').classList.remove('hidden');
-        setupSearch();
+      // Check active zones
+      activeZones = JSON.parse(sessionStorage.getItem("active_zones") || "[]");
+
+      const urlParams = new URLSearchParams(window.location.search);
+      cin = urlParams.get("cin");
+
+      if (cin) {
+        loadLedgerData(cin);
       } else {
-        document.getElementById('loadingSpinner').classList.remove('hidden');
-        await loadLedger(cinNo);
+        ledgerSearchCard.style.display = "block";
       }
     });
 
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-      await signOut(auth);
-      sessionStorage.clear();
-      window.location.href = 'index.html';
+    // Logout Functionality
+    logoutBtn.addEventListener("click", async () => {
+      loadingOverlay.style.display = "flex";
+      try {
+        await signOut(auth);
+        sessionStorage.clear();
+        window.location.href = "index.html";
+      } catch (error) {
+        console.error("Logout error:", error);
+      }
+      loadingOverlay.style.display = "none";
     });
 
-    function setupSearch() {
-      const doSearch = async () => {
-        const q = document.getElementById('searchInput').value.trim();
-        if (!q) {
-          setSearchError('Please enter a CIN No or Meter Serial Number.');
-          return;
-        }
-        clearSearchError();
-        document.getElementById('loadingSpinner').classList.remove('hidden');
-        try {
-          // Try direct by CIN
-          const cDoc = await getDoc(doc(db, 'consumers', q));
-          if (cDoc.exists()) {
-            cinNo = q;
-            document.getElementById('searchSection').classList.add('hidden');
-            await loadLedger(q);
-            return;
-          }
-          // Try by meter serial (indexed)
-          const snap = await getDocs(query(
-            collection(db, 'consumers'),
-            where('meter_serial_no', '==', q),
-            limit(1)
-          ));
-          if (!snap.empty) {
-            cinNo = snap.docs[0].id;
-            document.getElementById('searchSection').classList.add('hidden');
-            await loadLedger(cinNo);
-            return;
-          }
-          setSearchError('No consumer found with that CIN No or Meter Serial Number.');
-        } catch (err) {
-          console.error('Search error:', err);
-          setSearchError('Search failed. Please check your connection and try again.');
-        } finally {
-          document.getElementById('loadingSpinner').classList.add('hidden');
-        }
-      };
-      document.getElementById('searchBtn').addEventListener('click', doSearch);
-      document.getElementById('searchInput').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') doSearch();
-      });
+    function showAlert(message, type = "danger") {
+      alertContainer.innerHTML = `
+        <div class="alert alert-${type}">
+          <span>${message}</span>
+        </div>
+      `;
     }
 
-    function setSearchError(msg) {
-      const el = document.getElementById('searchError');
-      el.textContent = msg;
-      el.classList.remove('hidden');
-    }
-    function clearSearchError() {
-      document.getElementById('searchError').classList.add('hidden');
+    function clearAlert() {
+      alertContainer.innerHTML = "";
     }
 
-    function formatTs(ts) {
-      if (!ts) return '—';
-      let d;
-      if (ts && typeof ts.toDate === 'function') d = ts.toDate();
-      else if (ts && ts.seconds) d = new Date(ts.seconds * 1000);
-      else d = new Date(ts);
-      if (isNaN(d)) return '—';
-      return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
-    }
+    // Lookup handler inside page
+    ledgerSearchForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      clearAlert();
 
-    function formatCurrency(n) {
-      if (n == null || isNaN(Number(n))) return '—';
-      return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
+      const queryVal = ledgerSearchQuery.value.trim().toUpperCase();
+      if (!queryVal) {
+        showAlert("Please enter a valid CIN or Meter Serial.", "danger");
+        return;
+      }
 
-    function statusBadgeClass(status) {
-      const map = {
-        'Active': 'status-badge--active',
-        'Inactive': 'status-badge--inactive',
-        'Meter Faulty': 'status-badge--meter-faulty',
-        'Disconnected': 'status-badge--disconnected',
-        'Disputed': 'status-badge--disputed'
-      };
-      return map[status] || 'status-badge--inactive';
-    }
+      loadingText.textContent = "Locating consumer profile...";
+      loadingOverlay.style.display = "flex";
 
-    // Parse a DD-MM-YYYY string into a Date (returns null on failure)
-    function parseDDMMYYYY(s) {
-      if (!s || typeof s !== 'string') return null;
-      const parts = s.split('-');
-      if (parts.length !== 3) return null;
-      const [dd, mm, yyyy] = parts;
-      const d = new Date(`${yyyy}-${mm}-${dd}`);
-      return isNaN(d) ? null : d;
-    }
-
-    async function loadLedger(cin) {
       try {
-        // Step 1: load consumer (required — fail fast if missing)
-        const cDoc = await getDoc(doc(db, 'consumers', cin));
-        if (!cDoc.exists()) {
-          showError('Consumer not found.');
+        // Direct CIN lookup
+        const cinDocRef = doc(db, "consumers", queryVal);
+        let consumerDoc = await getDoc(cinDocRef);
+
+        if (!consumerDoc.exists()) {
+          // Meter serial query
+          const consumersRef = collection(db, "consumers");
+          const q = query(consumersRef, where("meter_serial_no", "==", queryVal));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            consumerDoc = querySnapshot.docs[0];
+          }
+        }
+
+        if (!consumerDoc.exists()) {
+          loadingOverlay.style.display = "none";
+          showAlert("No consumer record found matching that input.", "danger");
           return;
         }
-        const consumer = { cin_no: cDoc.id, ...cDoc.data() };
-        renderConsumerInfo(consumer);
-        renderBalances(consumer);
-        document.getElementById('pageContent').classList.remove('hidden');
 
-        // Step 2: load readings and payments independently so one failure doesn't block the other
-        const twelveMonthsAgo = new Date();
-        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
-        const cutoffTs = Timestamp.fromDate(twelveMonthsAgo);
+        // Redirect to same page with cin URL param to run standard pipeline
+        loadingOverlay.style.display = "none";
+        window.location.href = `ledger.html?cin=${consumerDoc.id}`;
 
-        // Readings — query only by cin_no + submitted_at (requires index: cin_no ASC, submitted_at DESC)
-        // Fall back to unordered if the composite index doesn't exist yet
-        const readingsPromise = (async () => {
-          try {
-            const snap = await getDocs(query(
-              collection(db, 'readings'),
-              where('cin_no', '==', cin),
-              where('submitted_at', '>=', cutoffTs),
-              orderBy('submitted_at', 'desc')
-            ));
-            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          } catch (e1) {
-            // Composite index missing — fall back: fetch all readings for this consumer, filter client-side
-            console.warn('Readings ordered query failed, falling back:', e1.message);
-            try {
-              const snap2 = await getDocs(query(
-                collection(db, 'readings'),
-                where('cin_no', '==', cin)
-              ));
-              const cutoffMs = twelveMonthsAgo.getTime();
-              return snap2.docs
-                .map(d => ({ id: d.id, ...d.data() }))
-                .filter(r => {
-                  if (!r.submitted_at) return false;
-                  const ms = r.submitted_at.seconds ? r.submitted_at.seconds * 1000
-                           : (r.submitted_at.toDate ? r.submitted_at.toDate().getTime() : 0);
-                  return ms >= cutoffMs;
-                })
-                .sort((a, b) => {
-                  const msA = a.submitted_at.seconds ? a.submitted_at.seconds * 1000 : 0;
-                  const msB = b.submitted_at.seconds ? b.submitted_at.seconds * 1000 : 0;
-                  return msB - msA;
-                });
-            } catch (e2) {
-              console.error('Readings fallback also failed:', e2.message);
-              return [];
-            }
-          }
-        })();
+      } catch (error) {
+        console.error("Lookup error:", error);
+        loadingOverlay.style.display = "none";
+        showAlert("Failed to query details. Please try again.", "danger");
+      }
+    });
 
-        // Payments — payment_date is stored as DD-MM-YYYY string, so we cannot use Firestore range filter.
-        // Fetch all payments for this consumer and filter client-side by parsing the date string.
-        const paymentsPromise = (async () => {
-          try {
-            const snap = await getDocs(query(
-              collection(db, 'payments'),
-              where('cin_no', '==', cin)
-            ));
-            const cutoffMs = twelveMonthsAgo.getTime();
-            return snap.docs
-              .map(d => ({ id: d.id, ...d.data() }))
-              .filter(p => {
-                // Try payment_date (DD-MM-YYYY string) first, then entry_date Timestamp
-                const pd = parseDDMMYYYY(p.payment_date);
-                if (pd) return pd.getTime() >= cutoffMs;
-                if (p.entry_date) {
-                  const ms = p.entry_date.seconds ? p.entry_date.seconds * 1000
-                           : (p.entry_date.toDate ? p.entry_date.toDate().getTime() : 0);
-                  return ms >= cutoffMs;
-                }
-                return false;
-              })
-              .sort((a, b) => {
-                const pa = parseDDMMYYYY(a.payment_date) || new Date(0);
-                const pb = parseDDMMYYYY(b.payment_date) || new Date(0);
-                return pb - pa;
-              });
-          } catch (err) {
-            console.error('Payments query failed:', err.message);
-            return [];
-          }
-        })();
+    async function loadLedgerData(cinVal) {
+      ledgerSearchCard.style.display = "none";
+      loadingText.textContent = "Loading ledger history (12-month limit)...";
+      loadingOverlay.style.display = "flex";
 
-        // Open cycles — needed for cycle status display
-        const openCyclesPromise = (async () => {
-          try {
-            const snap = await getDocs(query(
-              collection(db, 'billing_cycles'),
-              where('status', '==', 'open')
-            ));
-            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          } catch (err) {
-            console.warn('Open cycles query failed:', err.message);
-            return [];
-          }
-        })();
+      try {
+        // 1. Fetch Consumer Doc
+        const consumerDoc = await getDoc(doc(db, "consumers", cinVal));
+        if (!consumerDoc.exists()) {
+          showAlert(`No consumer found for CIN: ${cinVal}`, "danger");
+          loadingOverlay.style.display = "none";
+          ledgerSearchCard.style.display = "block";
+          return;
+        }
+        consumer = consumerDoc.data();
+        consumer.cin_no = consumerDoc.id;
 
-        // Wait for all three in parallel
-        const [readings, payments, openCycles] = await Promise.all([
-          readingsPromise,
-          paymentsPromise,
-          openCyclesPromise
+        // 2. Fetch Open Cycles in parallel to determine active billing cycle
+        const cyclesQuery = query(collection(db, "billing_cycles"), where("status", "==", "open"));
+        
+        // 3. Fetch Readings and Payments for this consumer
+        const readingsQuery = query(collection(db, "readings"), where("cin_no", "==", cinVal));
+        const paymentsQuery = query(collection(db, "payments"), where("cin_no", "==", cinVal));
+
+        const [cyclesSnapshot, readingsSnapshot, paymentsSnapshot] = await Promise.all([
+          getDocs(cyclesQuery),
+          getDocs(readingsQuery),
+          getDocs(paymentsQuery)
         ]);
 
-        renderCycleStatus(consumer, openCycles, readings);
-        renderBillsTable(readings, payments);
-        renderPaymentsTable(payments);
+        // Find active cycle for consumer zone
+        cyclesSnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.zones && data.zones.includes(parseInt(consumer.zone))) {
+            activeCycle = data;
+            activeCycle.id = doc.id;
+          }
+        });
 
-      } catch (err) {
-        console.error('loadLedger error:', err);
-        showError('Failed to load ledger: ' + (err.message || 'Unknown error. Please check your connection and try again.'));
-      } finally {
-        document.getElementById('loadingSpinner').classList.add('hidden');
-      }
-    }
+        // 4. Setup Profile Displays
+        cName.textContent = consumer.name || "";
+        cCin.textContent = consumer.cin_no || "";
+        cZone.textContent = consumer.zone || "";
+        cCategory.textContent = consumer.category || "";
+        cMeterSize.textContent = consumer.meter_size || "";
+        cMeterSerial.textContent = consumer.meter_serial_no || "";
+        cContact.textContent = consumer.contact_number || "—";
+        cAplBpl.textContent = consumer.apl_bpl || "—";
 
-    function renderConsumerInfo(consumer) {
-      const rows = [
-        ['CIN No.', consumer.cin_no],
-        ['Name', consumer.name],
-        ['Zone', consumer.zone],
-        ['Category', consumer.category],
-        ['Meter Size', consumer.meter_size],
-        ['Meter Serial', consumer.meter_serial_no],
-        ['Contact', consumer.contact_number || '—'],
-        ['APL/BPL', consumer.apl_bpl || '—'],
-        ['Status', `<span class="status-badge ${statusBadgeClass(consumer.consumer_status)}">${consumer.consumer_status || '—'}</span>`],
-        ['Address', [consumer.address_area_location, consumer.address_landmark, consumer.address_pin_code].filter(Boolean).join(', ') || '—'],
-      ];
-      document.getElementById('consumerInfo').innerHTML = rows.map(([l, v]) =>
-        `<div class="info-panel__row">
-          <span class="info-panel__label">${l}</span>
-          <span class="info-panel__value">${v || '—'}</span>
-        </div>`
-      ).join('');
-    }
+        const addressText = [
+          consumer.address_area_location,
+          consumer.address_landmark,
+          consumer.address_pin_code ? `PIN: ${consumer.address_pin_code}` : ""
+        ].filter(Boolean).join(", ");
+        cAddress.textContent = addressText || "—";
 
-    function renderBalances(consumer) {
-      document.getElementById('balanceInfo').innerHTML = `
-        <div class="info-panel__row">
-          <span class="info-panel__label">Outstanding Balance</span>
-          <span class="info-panel__value text-danger fw-bold">${formatCurrency(consumer.outstanding_balance || 0)}</span>
-        </div>
-        <div class="info-panel__row">
-          <span class="info-panel__label">Credit Balance</span>
-          <span class="info-panel__value text-success fw-bold">${formatCurrency(consumer.credit_balance || 0)}</span>
-        </div>`;
-    }
+        cOutstanding.textContent = formatCurrency(consumer.outstanding_balance || 0);
+        cCredit.textContent = formatCurrency(consumer.credit_balance || 0);
 
-    function renderCycleStatus(consumer, openCycles, readings) {
-      let cycleStatusText = 'No active billing cycle for this zone.';
-      const relevantCycle = openCycles.find(c => Array.isArray(c.zones) && c.zones.includes(consumer.zone));
-      if (relevantCycle) {
-        const cycleReading = readings.find(r => r.cycle_id === relevantCycle.id);
-        if (cycleReading) {
-          if (cycleReading.status === 'finalized') {
-            cycleStatusText = '✅ Reading submitted for current cycle.';
-          } else if (cycleReading.status === 'skipped') {
-            cycleStatusText = `⚠ Cannot Read recorded (${cycleReading.cannot_read_reason || 'reason not recorded'}).`;
+        // 5. Parse and Filter Readings (Last 12 Months)
+        const readings = [];
+        const twelveMonthsAgo = new Date();
+        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+        readingsSnapshot.forEach((doc) => {
+          const data = doc.data();
+          data.id = doc.id;
+          // readings submitted_at is serverTimestamp (Firestore Timestamp)
+          if (data.submitted_at) {
+            const submitDate = data.submitted_at.toDate();
+            if (submitDate >= twelveMonthsAgo) {
+              readings.push(data);
+            }
+          }
+        });
+
+        // Sort readings newest to oldest
+        readings.sort((a, b) => b.submitted_at.toDate() - a.submitted_at.toDate());
+
+        // Parse and Filter Payments (Last 12 Months)
+        const payments = [];
+        paymentsSnapshot.forEach((doc) => {
+          const data = doc.data();
+          data.id = doc.id;
+          // payment_date is stored as "DD-MM-YYYY" string
+          if (data.payment_date) {
+            const payDate = parseDate(data.payment_date);
+            if (payDate >= twelveMonthsAgo) {
+              payments.push(data);
+            }
+          }
+        });
+
+        // Sort payments newest to oldest
+        payments.sort((a, b) => parseDate(b.payment_date) - parseDate(a.payment_date));
+
+        // 6. Check Current Cycle Reading Entry status
+        let currentCycleStatus = "PENDING";
+        let inlineColorClass = "#f2dede"; // Red alert bg
+        let badgeColorClass = "status-badge inactive";
+
+        if (activeCycle) {
+          const currentCycleReading = readings.find(r => r.cycle_id === activeCycle.id);
+          if (currentCycleReading) {
+            if (currentCycleReading.status === "skipped") {
+              currentCycleStatus = "SKIPPED (" + currentCycleReading.cannot_read_reason + ")";
+              inlineColorClass = "#fcf8e3"; // Yellow bg
+              badgeColorClass = "status-badge meter faulty";
+            } else {
+              currentCycleStatus = "READ";
+              inlineColorClass = "#dff0d8"; // Green bg
+              badgeColorClass = "status-badge active";
+            }
           } else {
-            cycleStatusText = 'Reading pending for current cycle.';
+            // Check if active zone is active
+            if (activeZones.includes(parseInt(consumer.zone))) {
+              currentCycleStatus = "PENDING ENTRY";
+              inlineColorClass = "#fcf8e3"; // Yellow bg
+              badgeColorClass = "status-badge meter faulty";
+            } else {
+              currentCycleStatus = "NO ACTIVE CYCLE FOR ZONE";
+              inlineColorClass = "#e2e2e2"; // Grey bg
+              badgeColorClass = "status-badge";
+            }
           }
         } else {
-          cycleStatusText = '⏳ Reading not yet submitted for current cycle.';
+          currentCycleStatus = "NO ACTIVE CYCLE";
+          inlineColorClass = "#e2e2e2"; // Grey bg
+          badgeColorClass = "status-badge";
         }
-      }
-      document.getElementById('cycleStatus').innerHTML = `
-        <div class="info-panel__row">
-          <span class="info-panel__label">Current Cycle</span>
-          <span class="info-panel__value">${cycleStatusText}</span>
-        </div>`;
-    }
 
-    function renderBillsTable(readings, payments) {
-      const tbody = document.getElementById('billsBody');
-      if (readings.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center">No readings found in the last 12 months.</td></tr>';
-        return;
-      }
-      tbody.innerHTML = readings.map(r => {
-        const bill = r.full_bill_breakdown;
-        const total = bill ? bill.total_amount : null;
-        const consumption = r.consumption != null ? `${Number(r.consumption).toFixed(2)} KL` : '—';
-        const date = r.reading_date || formatTs(r.submitted_at);
-        let statusText = '—';
-        if (r.status === 'skipped') {
-          statusText = 'Cannot Read';
-        } else if (total != null) {
-          const paid = payments.some(p => p.cycle_id === r.cycle_id && p.cycle_id);
-          statusText = paid ? '<span class="text-success">Paid</span>' : '<span class="text-danger">Unpaid</span>';
+        cCycleStatusCard.style.backgroundColor = inlineColorClass;
+        cCycleStatusBadge.textContent = currentCycleStatus;
+        cCycleStatusBadge.className = badgeColorClass;
+
+        // 7. Calculate running outstanding payment statuses
+        // Allocate current outstanding balance to bills from newest to oldest (LIFO)
+        let unallocatedOutstanding = consumer.outstanding_balance || 0;
+
+        const readingsWithStatus = readings.map(r => {
+          let status = "Paid";
+          if (r.status === "skipped") {
+            status = "Skipped";
+          } else if (r.full_bill_breakdown) {
+            const billAmt = r.full_bill_breakdown.total_amount || 0;
+            if (unallocatedOutstanding >= billAmt) {
+              status = "Unpaid";
+              unallocatedOutstanding -= billAmt;
+            } else if (unallocatedOutstanding > 0) {
+              status = "Partial";
+              unallocatedOutstanding = 0;
+            } else {
+              status = "Paid";
+            }
+          }
+          return { ...r, payment_status: status };
+        });
+
+        // 8. Populate tables
+        billsTableBody.innerHTML = "";
+        if (readingsWithStatus.length === 0) {
+          billsTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No bill receipts logged in the last 12 months.</td></tr>`;
+        } else {
+          readingsWithStatus.forEach(r => {
+            const dateStr = r.reading_date || (r.submitted_at ? formatKL(0).split(" ")[0] : "—"); // fallback
+            
+            let statusPill = "";
+            if (r.payment_status === "Paid") {
+              statusPill = `<span class="status-badge active">Paid</span>`;
+            } else if (r.payment_status === "Unpaid") {
+              statusPill = `<span class="status-badge inactive">Unpaid</span>`;
+            } else if (r.payment_status === "Partial") {
+              statusPill = `<span class="status-badge meter faulty">Partial</span>`;
+            } else if (r.payment_status === "Skipped") {
+              statusPill = `<span class="status-badge" style="background-color:#e0e0e0;">Skipped</span>`;
+            }
+
+            const consumptionText = r.status === "skipped" ? "Skipped" : formatKL(r.consumption || 0);
+            const billAmtText = r.status === "skipped" ? "—" : formatCurrency(r.full_bill_breakdown ? r.full_bill_breakdown.total_amount : 0);
+
+            billsTableBody.innerHTML += `
+              <tr>
+                <td>${dateStr}</td>
+                <td>${consumptionText}</td>
+                <td class="amount">${billAmtText}</td>
+                <td style="text-align: center;">${statusPill}</td>
+              </tr>
+            `;
+          });
         }
-        return `<tr>
-          <td>${date}</td>
-          <td>${consumption}</td>
-          <td class="right">${total != null ? formatCurrency(total) : '—'}</td>
-          <td>${statusText}</td>
-        </tr>`;
-      }).join('');
-    }
 
-    function renderPaymentsTable(payments) {
-      const tbody = document.getElementById('paymentsBody');
-      if (payments.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="text-muted text-center">No payments found in the last 12 months.</td></tr>';
-        return;
+        paymentsTableBody.innerHTML = "";
+        if (payments.length === 0) {
+          paymentsTableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No payment receipts logged in the last 12 months.</td></tr>`;
+        } else {
+          payments.forEach(p => {
+            paymentsTableBody.innerHTML += `
+              <tr>
+                <td>${p.payment_date || "—"}</td>
+                <td class="amount" style="color: var(--success); font-weight: bold;">${formatCurrency(p.amount || 0)}</td>
+                <td>${p.payment_mode || "—"}</td>
+              </tr>
+            `;
+          });
+        }
+
+        loadingOverlay.style.display = "none";
+        ledgerContent.style.display = "block";
+
+      } catch (error) {
+        console.error("Error loading ledger details:", error);
+        showAlert("An error occurred while compiling ledger reports.", "danger");
+        loadingOverlay.style.display = "none";
+        ledgerSearchCard.style.display = "block";
       }
-      tbody.innerHTML = payments.map(p => `
-        <tr>
-          <td>${p.payment_date || formatTs(p.entry_date) || '—'}</td>
-          <td>${p.payment_mode || '—'}</td>
-          <td class="right amount-credit">${formatCurrency(p.amount)}</td>
-        </tr>`
-      ).join('');
-    }
-
-    function showError(msg) {
-      const el = document.getElementById('errorMsg');
-      el.textContent = msg;
-      el.classList.remove('hidden');
-      document.getElementById('pageContent').classList.remove('hidden');
     }
   </script>
 </body>
